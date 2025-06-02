@@ -1,0 +1,30 @@
+{
+  "name": "solana-mining-app",
+  "version": "1.0.0",
+  "description": "A Solana mining app",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "@solana/web3.js": "^1.98.1",
+    "@vladmandic/face-api": "^1.7.15",
+    "axios": "^1.9.0",
+    "bcrypt": "^6.0.0",
+    "bcryptjs": "^3.0.2",
+    "body-parser": "^1.20.3",
+    "canvas": "^3.1.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.5.0",
+    "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.2",
+    "mongodb": "^5.2.0",
+    "mongoose": "^7.8.7",
+    "multer": "^1.4.5-lts.2",
+    "nodemailer": "^7.0.3",
+    "uuid": "^11.1.0"
+  },
+  "author": "Your Name",
+  "license": "ISC",
+  "keywords": []
+}
