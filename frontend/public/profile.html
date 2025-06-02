@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>User Profile - Solana Mining</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Segoe+UI&display=swap');
+    body {
+      margin: 0;
+      padding: 0;
+      background:
+        radial-gradient(circle at center, rgba(150, 100, 255, 0.2), rgba(10, 0, 30, 0.9) 80%),
+        url('images/background.jpg') no-repeat center center fixed;
+      background-size: cover;
+      font-family: 'Segoe UI', sans-serif;
+      color: white;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 20px;
+      text-align: center;
+    }
+    h1 {
+      font-size: 48px;
+      margin-bottom: 30px;
+      text-shadow: 0 0 15px #b48aff;
+    }
+    .profile-container {
+      background: rgba(180, 150, 255, 0.15);
+      border: 2px solid #b48aff;
+      border-radius: 20px;
+      padding: 40px;
+      width: 100%;
+      max-width: 500px;
+      box-shadow: 0 0 25px #b48aff;
+      text-align: left;
+    }
+    .profile-container h2 {
+      margin-top: 0;
+      margin-bottom: 20px;
+      font-size: 30px;
+      text-align: center;
+      text-shadow: 0 0 10px #b48aff;
+    }
+    .profile-info {
+      font-size: 18px;
+      margin-bottom: 15px;
+    }
+    .profile-info strong {
+      color: #d8bfff;
+    }
+
+    /* 3D Back Button styling */
+    .back-button {
+      margin-top: 30px;
+      padding: 14px 0;
+      width: 220px;
+      border-radius: 15px;
+      border: none;
+      background: #b48aff;
+      color: white;
+      font-weight: 700;
+      font-size: 18px;
+      cursor: pointer;
+      box-shadow:
+        0 4px 6px rgba(180, 138, 255, 0.6),
+        0 0 12px #b48aff;
+      transition: background 0.3s ease, box-shadow 0.3s ease, transform 0.2s ease;
+      perspective: 1000px;
+    }
+    .back-button:hover {
+      background: #7a5fff;
+      box-shadow:
+        0 6px 12px rgba(122, 95, 255, 0.8),
+        0 0 18px #7a5fff;
+      transform: translateZ(10px) scale(1.05);
+    }
+  </style>
+</head>
+<body>
+  <h1>User Profile</h1>
+  <div class="profile-container">
+    <h2>Welcome, [Username]</h2>
+    <div class="profile-info"><strong>Email:</strong> user@example.com</div>
+    <div class="profile-info"><strong>Joined On:</strong> 2025-05-29</div>
+    <div class="profile-info"><strong>Total Mining Rewards:</strong> 0.45 SOL</div>
+    <div class="profile-info"><strong>Referral Code:</strong> ABC123XYZ</div>
+
+    <!-- Back to Dashboard Button -->
+    <button class="back-button" onclick="goBack()">Back to Dashboard</button>
+  </div>
+
+  <script>
+    function goBack() {
+      // یہاں اپنی dashboard کی اصل URL ڈالیں
+      window.location.href = 'dashboard.html';
+    }
+  </script>
+</body>
+</html>

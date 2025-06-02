@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Reward History</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;500;700&display=swap');
+
+    body {
+      margin: 0;
+      padding: 0;
+      background: 
+        radial-gradient(circle at center, rgba(255, 255, 255, 0.05), rgba(0, 0, 0, 0.9)),
+        url('images/background.jpg') no-repeat center center fixed;
+      background-size: cover;
+      font-family: 'Poppins', sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+
+    .container {
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 20px;
+      box-shadow: 0 20px 60px rgba(255, 0, 0, 0.4), 0 10px 30px rgba(0, 0, 0, 0.5);
+      padding: 40px;
+      width: 90%;
+      max-width: 750px;
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+    }
+
+    .title {
+      font-size: 32px;
+      font-weight: 700;
+      color: #ff4d4d;
+      text-align: center;
+      margin-bottom: 25px;
+      text-shadow: 2px 2px 8px #000;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      color: #fff;
+      font-size: 16px;
+    }
+
+    th, td {
+      padding: 14px 16px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      text-align: center;
+    }
+
+    th {
+      background-color: rgba(255, 77, 77, 0.3);
+      font-weight: 600;
+    }
+
+    tr:nth-child(odd) {
+      background-color: rgba(255, 255, 255, 0.05);
+    }
+
+    tr:hover {
+      background-color: rgba(255, 255, 255, 0.1);
+    }
+
+    .back-button {
+      margin-top: 25px;
+      display: block;
+      background-color: #ff4d4d;
+      color: white;
+      padding: 12px 25px;
+      border: none;
+      border-radius: 10px;
+      font-size: 16px;
+      cursor: pointer;
+      transition: background 0.3s ease;
+      text-align: center;
+      text-decoration: none;
+    }
+
+    .back-button:hover {
+      background-color: #cc0000;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="title">Reward History</div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Reward Type</th>
+          <th>Amount (SOL)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>2025-05-29</td>
+          <td>Mining</td>
+          <td>+0.02</td>
+        </tr>
+        <tr>
+          <td>2025-05-28</td>
+          <td>Deposit</td>
+          <td>+0.50</td>
+        </tr>
+        <tr>
+          <td>2025-05-27</td>
+          <td>Withdraw</td>
+          <td>-0.30</td>
+        </tr>
+        <tr>
+          <td>2025-05-26</td>
+          <td>Mining</td>
+          <td>+0.02</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <a href="dashboard.html" class="back-button">Back to Dashboard</a>
+  </div>
+</body>
+</html>

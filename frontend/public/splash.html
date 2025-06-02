@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Splash Screen</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background-color: #000;
+      height: 100vh;
+      width: 100vw;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+      font-family: 'Poppins', sans-serif;
+      color: #00ffa3;
+      overflow: hidden;
+    }
+
+    .logo {
+      width: 80vw;
+      max-width: 300px;
+      height: auto;
+    }
+
+    .logo img {
+      width: 100%;
+      height: auto;
+    }
+
+    .splash-text {
+      margin-top: 20px;
+      font-size: 6vw;
+      font-weight: bold;
+      text-align: center;
+    }
+
+    @media (min-width: 768px) {
+      .logo {
+        width: 250px;
+      }
+
+      .splash-text {
+        font-size: 28px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="logo">
+    <img src="/images/solanaa-logo.png" alt="Solana Logo" />
+  </div>
+  <div class="splash-text">Solana Mining</div>
+
+  <script>
+    setTimeout(() => {
+      window.location.href = '/index.html';
+    }, 4000);
+  </script>
+</body>
+</html>

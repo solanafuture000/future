@@ -12,6 +12,7 @@ const fs = require('fs');
 const nodemailer = require('nodemailer');
 
 const app = express();
+const cors = require("cors");
 
 app.use(cors({
     origin: '*',

@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Invite & Earn - Solana Mining</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Segoe+UI&display=swap');
+    body {
+      margin: 0;
+      padding: 0;
+      background:
+        radial-gradient(circle at center, rgba(0,255,100,0.15), rgba(0,50,0,0.9) 80%),
+        url('images/background.jpg') no-repeat center center fixed;
+      background-size: cover;
+      font-family: 'Segoe UI', sans-serif;
+      color: white;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 20px;
+      text-align: center;
+    }
+    h1 {
+      font-size: 48px;
+      margin-bottom: 30px;
+      text-shadow: 0 0 10px #00ff5a;
+    }
+    .invite-box {
+      background: rgba(0, 255, 100, 0.15);
+      border: 2px solid #00ff5a;
+      border-radius: 15px;
+      padding: 30px;
+      width: 100%;
+      max-width: 600px;
+      box-shadow: 0 0 20px #00ff5a;
+      margin-bottom: 25px;
+      font-size: 18px;
+    }
+    .invite-box h2 {
+      margin-top: 0;
+      font-size: 26px;
+      margin-bottom: 15px;
+      text-shadow: 0 0 8px #00ff5a;
+    }
+    .invite-box p {
+      line-height: 1.5;
+    }
+    .reward-box {
+      background: rgba(0, 255, 100, 0.3);
+      border-radius: 10px;
+      padding: 20px;
+      margin: 15px 0;
+      font-weight: bold;
+      box-shadow: 0 0 15px #00ff5a;
+      transition: background 0.3s ease;
+    }
+    .reward-box:hover {
+      background: rgba(0, 255, 100, 0.5);
+    }
+    /* 3D Back to Dashboard Button */
+    .back-button {
+      margin-top: 30px;
+      padding: 15px 0;
+      width: 200px;
+      font-size: 20px;
+      font-weight: 700;
+      color: #fff;
+      background: #00ff5a;
+      border: none;
+      border-radius: 15px;
+      cursor: pointer;
+      box-shadow:
+        0 0 10px #00ff5a,
+        0 5px 15px rgba(0, 255, 90, 0.6);
+      transition: background 0.3s ease, box-shadow 0.3s ease;
+      transform-style: preserve-3d;
+      perspective: 1000px;
+    }
+    .back-button:hover {
+      background: #00cc48;
+      box-shadow:
+        0 0 20px #00ff5a,
+        0 8px 25px rgba(0, 255, 90, 0.8);
+      transform: translateZ(10px);
+    }
+  </style>
+</head>
+<body>
+  <h1>Invite & Earn Rewards</h1>
+  <div class="invite-box">
+    <h2>How It Works</h2>
+    <p>Invite your friends to join our Solana Mining platform. For each successful referral, you earn rewards like SOL tokens, bonuses, and exclusive perks!</p>
+  </div>
+  <div class="reward-box">
+    Invite 1 friend - Earn 0.01 SOL bonus
+  </div>
+  <div class="reward-box">
+    Invite 5 friends - Earn 0.1 SOL bonus + special badge
+  </div>
+  <div class="reward-box">
+    Invite 10 friends - Earn 0.3 SOL bonus + access to VIP mining pool
+  </div>
+  <div class="reward-box">
+    Invite 20+ friends - Earn 1 SOL bonus + exclusive rewards
+  </div>
+
+  <button class="back-button" onclick="goBack()">Back to Dashboard</button>
+
+  <script>
+    function goBack() {
+      // Replace this URL with your actual dashboard page URL
+      window.location.href = 'dashboard.html';
+    }
+  </script>
+</body>
+</html>

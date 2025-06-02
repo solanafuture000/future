@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Withdraw - Solana Mining</title>
+
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-G5X2F4ZC99"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-G5X2F4ZC99');
+  </script>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Poppins&display=swap');
+    body {
+      margin: 0;
+      padding: 0;
+      background: url('images/background.jpg') no-repeat center center fixed;
+      background-size: cover;
+      font-family: 'Poppins', sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+    }
+
+    .logo {
+      width: 120px;
+      margin-bottom: 20px;
+    }
+
+    h1 {
+      color: white;
+      text-align: center;
+      margin-bottom: 20px;
+      text-shadow: 0 0 10px #00ffa3;
+    }
+
+    form {
+      background: rgba(0, 0, 0, 0.7);
+      padding: 30px 40px;
+      border-radius: 15px;
+      box-shadow: 0 0 20px #00ffa3;
+      width: 90%;
+      max-width: 360px;
+    }
+
+    label {
+      color: white;
+      font-size: 16px;
+      margin-bottom: 8px;
+      display: block;
+    }
+
+    input {
+      width: 100%;
+      padding: 12px;
+      margin: 12px 0;
+      border-radius: 10px;
+      border: none;
+      font-size: 16px;
+      outline: none;
+      color: #000;
+      font-weight: bold;
+    }
+
+    button {
+      width: 100%;
+      padding: 12px;
+      border-radius: 10px;
+      border: none;
+      background: #00ffa3;
+      color: #000;
+      font-weight: bold;
+      font-size: 18px;
+      cursor: pointer;
+      transition: background 0.3s ease;
+    }
+
+    #message {
+      margin-top: 15px;
+      font-weight: bold;
+      font-size: 16px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+
+  <img src="images/solana-logo.png" alt="Solana Logo" class="logo" />
+
+  <h1>Withdraw from Solana Mining</h1>
+
+  <form id="withdrawForm">
+    <label for="amount">Withdraw Amount (minimum 0.3 SOL)</label>
+    <input type="number" id="amount" placeholder="Example 0.3" step="0.01" min="0.3" required />
+
+    <button type="submit" id="withdrawBtn">Withdraw</button>
+  </form>
+
+  <div id="message"></div>
+
+  <script>
+    const form = document.getElementById('withdrawForm');
+    const messageDiv = document.getElementById('message');
+    const button = document.getElementById('withdrawBtn');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+
+      const amount = parseFloat(document.getElementById('amount').value);
+      messageDiv.textContent = '';
+      messageDiv.style.color = '';
+
+      if (isNaN(amount) || amount < 0.3) {
+        messageDiv.textContent = 'Minimum amount to withdraw is 0.3 SOL.';
+        messageDiv.style.color = '#ff4d4d';
+        return;
+      }
+
+      const token = localStorage.getItem('token');
+      if (!token) {
+        messageDiv.textContent = 'Please log in first.';
+        messageDiv.style.color = '#ff4d4d';
+        return;
+      }
+
+      button.disabled = true;
+      button.textContent = 'Please wait...';
+
+      try {
+        const res = await fetch('https://1c47-175-107-224-23.ngrok-free.app/withdraw', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ amount })
+        });
+
+        const data = await res.json();
+
+        if (res.ok) {
+          messageDiv.textContent = 'Withdrawal successful!';
+          messageDiv.style.color = '#4dff88';
+          form.reset();
+        } else {
+          messageDiv.textContent = data.message || 'Withdrawal failed.';
+          messageDiv.style.color = '#ff4d4d';
+        }
+      } catch (err) {
+        messageDiv.textContent = 'Network error. Please try again.';
+        messageDiv.style.color = '#ff4d4d';
+      } finally {
+        button.disabled = false;
+        button.textContent = 'Withdraw';
+      }
+    });
+  </script>
+
+</body>
+</html>

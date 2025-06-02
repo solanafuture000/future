@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>KYC Verification - Solana future App</title>
+
+  <!-- Google Analytics -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-PLPPNLND6R"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+
+    gtag('config', 'G-PLPPNLND6R');
+  </script>
+  <!-- End Google Analytics -->
+
+  <style>
+    
+    body {
+     
+     margin: 0;
+      padding: 0;
+      background: url('images/kyc-background.jpg') no-repeat center center fixed;
+      background-size: cover;
+      font-family: 'Segoe UI', sans-serif;
+      color: white;
+      text-align: center;
+    }
+    .container {
+      margin-top: 10%;
+      background: rgba(0, 0, 0, 0.6);
+      padding: 30px;
+      border-radius: 15px;
+      display: inline-block;
+      max-width: 600px;
+    }
+    img.logo {
+      width: 120px;
+      animation: float 3s ease-in-out infinite;
+      margin-bottom: 20px;
+    }
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-10px); }
+    }
+    h1 {
+      font-size: 36px;
+      margin-bottom: 20px;
+      color: #00ffa3;
+    }
+    p.description {
+      font-size: 18px;
+      margin-bottom: 30px;
+      color: #ccc;
+    }
+    input[type="file"] {
+      margin: 10px 0;
+      padding: 10px;
+      border-radius: 10px;
+      border: none;
+      font-size: 16px;
+      width: 100%;
+      box-sizing: border-box;
+    }
+    button.verify-btn {
+      padding: 12px 30px;
+      font-size: 18px;
+      font-weight: bold;
+      border: none;
+      border-radius: 12px;
+      background-color: #00ffa3;
+      color: #000;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+      margin-top: 15px;
+      width: 100%;
+    }
+    button.verify-btn:hover {
+      background-color: #00cc7a;
+    }
+    .back-btn {
+      margin-top: 40px;
+      padding: 15px 40px;
+      font-size: 20px;
+      font-weight: bold;
+      color: #000;
+      background: linear-gradient(145deg, #00ffa3, #00cc7a);
+      border-radius: 15px;
+      border: none;
+      cursor: pointer;
+      box-shadow:
+        0 5px 0 #008f5e,
+        0 10px 15px rgba(0, 204, 122, 0.6);
+      transition: all 0.2s ease;
+      width: 100%;
+    }
+    .back-btn:hover {
+      background: linear-gradient(145deg, #00cc7a, #009b5d);
+      box-shadow:
+        0 3px 0 #007045,
+        0 8px 12px rgba(0, 179, 98, 0.8);
+      transform: translateY(2px);
+    }
+            
+  </style>
+</head>
+<body>
+  <div class="container">
+    <img src="images/solana-logo.png" alt="Solana Logo" class="logo" />
+    <h1>KYC Verification</h1>
+    <p class="description">
+      Please complete your identity verification by uploading a live selfie and valid ID document.<br/>
+      This process ensures security and trust on the Solana Mining platform.
+    </p>
+
+    <form id="kycForm" enctype="multipart/form-data">
+      <input type="file" name="selfie" accept="image/*" required />
+      <input type="file" name="idDocument" accept="image/*,application/pdf" required />
+      <button type="submit" class="verify-btn">Start Verification</button>
+    </form>
+
+    <button class="back-btn" onclick="window.location.href='dashboard.html'">Back to Dashboard</button>
+  </div>
+
+  <script>
+     function startKYC() {
+    // Redirect to the backend KYC start API (adjust as needed)
+    window.location.href = " https://8d5e-116-90-96-193.ngrok-free.app/api/kyc/start";
+  }
+    document.getElementById('kycForm').addEventListener('submit', async function(e) {
+      e.preventDefault();
+
+      const form = e.target;
+      const formData = new FormData(form);
+
+      try {
+        const response = await fetch('/kyc/submit', {
+          method: 'POST',
+          body: formData,
+          headers: {
+            // اگر آپ کے backend کو auth token چاہیے تو یہاں شامل کریں
+            //'Authorization': 'Bearer ' + localStorage.getItem('token'),
+          }
+        });
+
+        if (!response.ok) {
+          throw new Error('Network response was not ok');
+        }
+
+        const data = await response.json();
+        alert(data.message || 'KYC submitted successfully!');
+        if(data.success) {
+          window.location.href = 'dashboard.html'; // کامیابی پر dashboard پر بھیج دیں
+        }
+      } catch (error) {
+        alert('KYC submission failed: ' + error.message);
+        console.error('Error:', error);
+      }
+    });
+  </script>
+</body>
+</html>

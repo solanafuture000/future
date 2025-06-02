@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Solana Dashboard</title>
+
+  <!-- Google Analytics -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-PLPPNLND6R"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-PLPPNLND6R');
+  </script>
+
+  <style>
+    /* Reset and styling */
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      margin: 0;
+      padding: 0;
+      background: url('images/background.jpg') no-repeat center center fixed;
+      background-size: cover;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      color: #e0e0e0;
+      text-align: center;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
+      align-items: center;
+      padding: 20px 10px 40px;
+      background-attachment: fixed;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+    .sidebar {
+      position: fixed;
+      left: 0;
+      top: 0;
+      width: 220px;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.85);
+      border-right: 2px solid #00ffa3;
+      padding-top: 30px;
+      box-shadow: 0 0 15px #00ffa3;
+      z-index: 100;
+    }
+    .sidebar h2 {
+      color: #00ffa3;
+      text-align: center;
+      margin-bottom: 30px;
+      font-size: 20px;
+    }
+    .sidebar a {
+      display: block;
+      padding: 15px 20px;
+      color: white;
+      text-decoration: none;
+      font-size: 16px;
+      border-bottom: 1px solid #00ffa355;
+      transition: background 0.3s;
+    }
+    .sidebar a:hover {
+      background-color: rgba(0, 255, 163, 0.2);
+      color: #00ffa3;
+    }
+    .container {
+      max-width: 480px;
+      width: 100%;
+      background: rgba(0, 0, 0, 0.55);
+      border-radius: 16px;
+      padding: 25px 20px 30px;
+      box-shadow: 0 8px 30px rgba(0,255,163,0.3);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      margin-left: 240px; /* To avoid sidebar overlap */
+    }
+    .logo {
+      width: 110px;
+      margin: 0 auto 15px;
+      animation: float 3s ease-in-out infinite;
+      filter: drop-shadow(0 0 4px #00ffa3);
+      transition: transform 0.3s ease;
+    }
+    .logo:hover {
+      transform: scale(1.1) translateY(-5px);
+    }
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-10px); }
+    }
+    h1 {
+      font-size: 2.4rem;
+      margin-bottom: 25px;
+      line-height: 1.2;
+      color: #00ffa3;
+      text-shadow: 0 0 8px #00ffa3;
+      word-wrap: break-word;
+    }
+    .dashboard-cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 18px;
+      margin-top: 25px;
+    }
+    .card {
+      background: rgba(0, 0, 0, 0.75);
+      border: 1.5px solid #00ffa3;
+      border-radius: 14px;
+      padding: 18px 15px;
+      box-shadow: 0 0 12px rgba(0,255,163,0.7);
+      transition: box-shadow 0.3s ease;
+      cursor: default;
+      user-select: none;
+    }
+    .card:hover {
+      box-shadow: 0 0 25px #00ffa3;
+    }
+    .card h2 {
+      margin: 0;
+      font-size: 1.4rem;
+      font-weight: 600;
+      color: #00ffa3;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+    }
+    .card p {
+      font-size: 1.1rem;
+      margin-top: 12px;
+      font-weight: 700;
+      color: #e0e0e0;
+      user-select: text;
+    }
+    .buttons {
+      margin-top: 30px;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 12px;
+    }
+    .buttons a, .buttons button {
+      background: rgba(0,0,0,0.85);
+      color: #00ffa3;
+      border: 2px solid #00ffa3;
+      padding: 14px 28px;
+      border-radius: 14px;
+      font-weight: 700;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      user-select: none;
+      min-width: 110px;
+      text-transform: uppercase;
+      box-shadow: 0 0 8px rgba(0,255,163,0.5);
+    }
+    .buttons a:hover, .buttons button:hover {
+      background: #00ffa3;
+      color: #000;
+      box-shadow: 0 0 20px #00ffa3;
+      transform: scale(1.05);
+    }
+    .buttons button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      box-shadow: none;
+      background: rgba(0,0,0,0.4);
+      color: #666;
+      border-color: #666;
+      transform: none;
+    }
+    #claimMessage, #miningStatus {
+      margin-top: 15px;
+      font-size: 1.1rem;
+      color: #00ffa3;
+      min-height: 26px;
+      font-weight: 600;
+      text-shadow: 0 0 8px #00ffa3;
+    }
+    @media (max-width: 600px) {
+      .container {
+        margin-left: 0;
+      }
+      h1 {
+        font-size: 1.8rem;
+        margin-bottom: 20px;
+      }
+      .dashboard-cards {
+        grid-template-columns: 1fr;
+        gap: 18px;
+      }
+      .card {
+        width: 100%;
+      }
+      .buttons {
+        flex-direction: column;
+        gap: 15px;
+      }
+      .buttons a, .buttons button {
+        min-width: 100%;
+        font-size: 1.1rem;
+      }
+    }
+    .dashboard-btn {
+      display: inline-block;
+      margin: 10px;
+      padding: 12px 20px;
+      background-color: #00ffa3;
+      color: #000;
+      font-weight: bold;
+      border-radius: 8px;
+      text-decoration: none;
+      box-shadow: 0 0 10px #00ffa3;
+      transition: transform 0.3s ease;
+    }
+    .dashboard-btn:hover {
+      transform: scale(1.05);
+      box-shadow: 0 0 15px #00ffa3;
+    }
+  </style>
+
+</head>
+<body>
+
+  <div class="sidebar">
+    <h2>🚀 Solana App</h2>
+    <a href="profile.html">🙍‍♂️ My Profile</a>
+    <a href="invite.html">🤝 Invite & Earn</a>
+    <a href="kyc.html">🛡️ KYC Verification</a>
+    <a href="leaderboard.html">🏆 Leaderboard</a>
+    <a href="reward-history.html">🎁 Reward History</a>
+    <a href="deposit-withdraw.html">💰 Deposit & Withdraw</a>
+    <a href="support.html">👨‍💻 24/7 Support</a>
+  </div>
+
+  <div class="container">
+    <img src="images/logo.png" alt="Logo" class="logo" />
+
+    <h1>
+      Welcome to<br />
+      <span style="color:#00ff73">SOLANA</span> Mining<br />
+      Dashboard
+    </h1>
+
+    <div class="dashboard-cards">
+      <div class="card">
+        <h2>Balance (SOL)</h2>
+        <p id="balance" title="Your current balance">Loading...</p>
+      </div>
+
+      <div class="card">
+        <h2>Referral Reward (SOL)</h2>
+        <p id="referralReward" title="Rewards from your referrals">Loading...</p>
+      </div>
+
+      <div class="card">
+        <h2>Staking Reward (SOL)</h2>
+        <p id="stakingReward" title="Daily staking rewards">Loading...</p>
+      </div>
+    </div>
+
+    <div class="buttons">
+      <button id="startMiningBtn" class="dashboard-btn">Start Mining</button>
+      <button id="claimRewardBtn" class="dashboard-btn" disabled>Claim Reward</button>
+    </div>
+
+    <div id="miningStatus"></div>
+    <div id="claimMessage"></div>
+  </div>
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.20.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.20.0/firebase-auth-compat.js"></script>
+
+  <script>
+    // Your Firebase config here, replace with your actual config from Firebase console
+    const firebaseConfig = {
+      apiKey: "AIzaSyBuyJT3JPnzlPCb7h4B5TE5k7-xo9kg_8c",
+      authDomain: "solana-future-24bf1",
+      projectId: "488239811219",
+      storageBucket: "YOUR_STORAGE_BUCKET",
+      messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+      appId: "YOUR_APP_ID"
+    };
+
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+
+    // Simulated user data (replace with real data or API calls)
+    let userData = {
+      balance: 1.235,
+      referralReward: 0.045,
+      stakingReward: 0.12,
+      miningActive: false,
+      lastClaimTime: null
+    };
+
+    // DOM elements
+    const balanceEl = document.getElementById('balance');
+    const referralRewardEl = document.getElementById('referralReward');
+    const stakingRewardEl = document.getElementById('stakingReward');
+    const startMiningBtn = document.getElementById('startMiningBtn');
+    const claimRewardBtn = document.getElementById('claimRewardBtn');
+    const miningStatusEl = document.getElementById('miningStatus');
+    const claimMessageEl = document.getElementById('claimMessage');
+
+    // Update UI with user data
+    function updateDashboard() {
+      balanceEl.textContent = userData.balance.toFixed(3);
+      referralRewardEl.textContent = userData.referralReward.toFixed(3);
+      stakingRewardEl.textContent = userData.stakingReward.toFixed(3);
+
+      claimRewardBtn.disabled = userData.referralReward <= 0 && userData.stakingReward <= 0;
+      miningStatusEl.textContent = userData.miningActive ? "Mining is running..." : "Mining is stopped.";
+      claimMessageEl.textContent = "";
+    }
+
+    // Start mining button click handler
+    startMiningBtn.addEventListener('click', () => {
+      if (!userData.miningActive) {
+        userData.miningActive = true;
+        miningStatusEl.textContent = "Mining started. Please wait...";
+        startMiningBtn.textContent = "Stop Mining";
+        // Simulate mining progress - after 10 seconds add rewards
+        setTimeout(() => {
+          userData.referralReward += 0.01;
+          userData.stakingReward += 0.02;
+          userData.balance += 0.03;
+          updateDashboard();
+          miningStatusEl.textContent = "Mining paused. You can claim rewards.";
+          claimRewardBtn.disabled = false;
+        }, 10000);
+      } else {
+        userData.miningActive = false;
+        miningStatusEl.textContent = "Mining stopped.";
+        startMiningBtn.textContent = "Start Mining";
+      }
+      updateDashboard();
+    });
+
+    // Claim reward button click handler
+    claimRewardBtn.addEventListener('click', () => {
+      if (userData.referralReward > 0 || userData.stakingReward > 0) {
+        let totalClaim = userData.referralReward + userData.stakingReward;
+        userData.balance += totalClaim;
+        userData.referralReward = 0;
+        userData.stakingReward = 0;
+        claimMessageEl.textContent = `You claimed ${totalClaim.toFixed(3)} SOL successfully!`;
+        claimRewardBtn.disabled = true;
+        updateDashboard();
+      }
+    });
+
+    // Initialize dashboard on load
+    window.onload = () => {
+      // Normally, here you'd check if user is logged in with Firebase auth:
+      // auth.onAuthStateChanged(user => { ... })
+
+      updateDashboard();
+    };
+  </script>
+
+</body>
+</html>

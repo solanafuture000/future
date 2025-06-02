@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Leaderboard - Solana Mining</title>
+  <link href="https://fonts.googleapis.com/css2?family=Segoe+UI&display=swap" rel="stylesheet">
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background:
+        radial-gradient(circle at center, rgba(0,255,163,0.1), rgba(0,0,0,0.95)),
+        url('images/background.jpg') no-repeat center center fixed;
+      background-size: cover;
+      font-family: 'Segoe UI', sans-serif;
+      color: #ffffff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+    }
+
+    .back-button {
+      align-self: flex-start;
+      margin: 20px;
+      margin-left: 30px;
+    }
+
+    .back-button a {
+      text-decoration: none;
+      background-color: #00ffa3;
+      color: #000;
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-weight: bold;
+      box-shadow: 0 0 10px #00ffa3;
+      transition: background-color 0.3s ease;
+    }
+
+    .back-button a:hover {
+      background-color: #00cc88;
+    }
+
+    header {
+      padding: 20px;
+      text-align: center;
+    }
+
+    .logo {
+      width: 100px;
+      animation: float 3s ease-in-out infinite;
+      filter: drop-shadow(0 0 6px #00ffa3);
+    }
+
+    @keyframes float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-8px); }
+    }
+
+    h1 {
+      font-size: 42px;
+      margin: 10px 0;
+      text-shadow: 0 0 8px #00ffa3;
+    }
+
+    .leaderboard {
+      width: 90%;
+      max-width: 600px;
+      background: rgba(0, 0, 0, 0.7);
+      border-radius: 15px;
+      box-shadow: 0 0 15px #00ffa3;
+      padding: 30px;
+      margin: 20px;
+      animation: slideIn 1s ease-out;
+    }
+
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateY(30px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+    }
+
+    th, td {
+      padding: 12px;
+      text-align: center;
+      border-bottom: 1px solid #00ffa3;
+    }
+
+    th {
+      background: #00ffa3;
+      color: #000;
+      font-weight: bold;
+    }
+
+    tr:hover {
+      background-color: rgba(0, 255, 163, 0.2);
+    }
+
+    .social-icons {
+      margin-top: 30px;
+    }
+
+    .social-icons a {
+      margin: 0 10px;
+    }
+
+    .social-icons img {
+      width: 35px;
+      filter: drop-shadow(0 0 5px #00ffa3);
+      transition: transform 0.3s ease;
+    }
+
+    .social-icons img:hover {
+      transform: scale(1.2);
+      filter: drop-shadow(0 0 12px #00ffa3);
+    }
+
+    @media screen and (max-width: 500px) {
+      h1 { font-size: 28px; }
+      .leaderboard { padding: 20px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Back to Dashboard Button -->
+  <div class="back-button">
+    <a href="dashboard.html">&larr; Back to Dashboard</a>
+  </div>
+
+  <header>
+    <img src="images/solana-logo.png" alt="Solana Logo" class="logo">
+    <h1>Top Miners Leaderboard</h1>
+  </header>
+
+  <div class="leaderboard">
+    <table>
+      <thead>
+        <tr>
+          <th>Rank</th>
+          <th>Username</th>
+          <th>SOL Earned</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>1</td>
+          <td>CryptoKing</td>
+          <td>12.4 SOL</td>
+        </tr>
+        <tr>
+          <td>2</td>
+          <td>SolMaster</td>
+          <td>9.8 SOL</td>
+        </tr>
+        <tr>
+          <td>3</td>
+          <td>FutureChain</td>
+          <td>7.5 SOL</td>
+        </tr>
+        <!-- مزید یوزرز یہاں شامل کریں -->
+      </tbody>
+    </table>
+  </div>
+
+  <div class="social-icons">
+    <a href="https://youtube.com/@solanafuture" target="_blank">
+      <img src="images/youtube.png" alt="YouTube" />
+    </a>
+    <a href="https://t.me/SolanaFutureBlockchain" target="_blank">
+      <img src="images/telegram.png" alt="Telegram" />
+    </a>
+    <a href="https://www.instagram.com/solana_future" target="_blank">
+      <img src="images/instagram.png" alt="Instagram" />
+    </a>
+  </div>
+
+</body>
+</html>
