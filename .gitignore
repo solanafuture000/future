@@ -1,0 +1,29 @@
+# Node modules folder ko ignore karo
+node_modules/
+
+# Environment variables file ko ignore karo
+.env
+
+# Uploads folder (agar aap images ya files store karte hain to)
+uploads/
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS-specific files (Windows)
+Thumbs.db
+Desktop.ini
+
+# OS-specific files (macOS)
+.DS_Store
+
+# Optional npm cache folder
+.npm
+
+# Build output (agar aapka project build karta hai to)
+dist/
+build/
