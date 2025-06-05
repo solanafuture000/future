@@ -1,26 +1,40 @@
 require('dotenv').config();
 
+const path = require('path');
 const express = require('express');
 const mongoose = require('mongoose');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { Keypair } = require('@solana/web3.js');
-const cors = require('cors');
 const multer = require('multer');
-const path = require('path');
 const fs = require('fs');
 const nodemailer = require('nodemailer');
-
 const app = express();
-const cors = require("cors");
+
+
+app.use(express.static(path.join(__dirname, 'public')));
+const cors = require('cors');
+
+const allowedOrigins = [
+  'https://solana-future-24bf1.web.app', // Firebase frontend
+  'http://localhost:3000'                // (Dev testing if needed)
+];
 
 app.use(cors({
-    origin: '*',
+    origin: function (origin, callback) {
+        if (!origin || allowedOrigins.includes(origin)) {
+            callback(null, true);
+        } else {
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
-    
+    credentials: true
 }));
-app.options('*', cors());
+
+app.options('*', cors()); // Pre-flight requests
+
 
 app.use(express.json());
 app.use('/uploads', express.static('uploads'));
