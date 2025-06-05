@@ -10,8 +10,57 @@ const multer = require('multer');
 const fs = require('fs');
 const nodemailer = require('nodemailer');
 const app = express();
+const wallet = Keypair.generate(); // صارف کے لیے سولانا والیٹ بنائی گئی
+const { Connection, PublicKey, LAMPORTS_PER_SOL, SystemProgram, Transaction, sendAndConfirmTransaction } = require('@solana/web3.js');
 
+// سولانا نیٹورک سے کنیکٹ کریں (Devnet یا Mainnet)
+const connection = new Connection(
+  process.env.SOLANA_RPC_URL || "https://api.devnet.solana.com", 
+  'confirmed'
+);
 
+// حقیقی SOL ڈیپازٹ کی تصدیق
+app.post('/deposit/verify', async (req, res) => {
+  const { txHash, publicKey } = req.body;
+  
+  try {
+    const tx = await connection.getTransaction(txHash);
+    const recipient = tx.transaction.message.accountKeys[1].toString();
+    
+    if (recipient !== publicKey) {
+      return res.status(400).json({ error: "ٹرانزیکشن غلط والیٹ پر گئی ہے!" });
+    }
+
+    const amount = (tx.meta.postBalances[1] - tx.meta.preBalances[1]) / LAMPORTS_PER_SOL;
+    res.json({ success: true, amount });
+  } catch (error) {
+    res.status(500).json({ error: "ٹرانزیکشن چیک کرنے میں ناکامی!" });
+  }
+});
+
+// حقیقی SOL وٹھڈراال
+app.post('/withdraw/sol', async (req, res) => {
+  const { secretKey, recipientAddress, amount } = req.body;
+  
+  try {
+    const fromWallet = Keypair.fromSecretKey(
+      Buffer.from(secretKey, 'base64')
+    );
+    
+    const transaction = new Transaction().add(
+      SystemProgram.transfer({
+        fromPubkey: fromWallet.publicKey,
+        toPubkey: new PublicKey(recipientAddress),
+        lamports: amount * LAMPORTS_PER_SOL,
+      })
+    );
+
+    const txHash = await sendAndConfirmTransaction(connection, transaction, [fromWallet]);
+    res.json({ success: true, txHash });
+  } catch (error) {
+    res.status(500).json({ error: "وٹھڈراال ناکام!" });
+  }
+});
 app.use(express.static(path.join(__dirname, 'public')));
 const cors = require('cors');
 
@@ -35,7 +84,6 @@ app.use(cors({
 }));
 
 app.options('*', cors());
-
 
 
 app.use(express.json());
