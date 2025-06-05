@@ -16,24 +16,26 @@ app.use(express.static(path.join(__dirname, 'public')));
 const cors = require('cors');
 
 const allowedOrigins = [
-  'https://solana-future-24bf1.web.app', // Firebase frontend
-  'http://localhost:3000'                // (Dev testing if needed)
+  'https://solana-future-24bf1.web.app',
+  'https://solana-future-24bf1.firebaseapp.com',
+  'http://localhost:3000'
 ];
 
 app.use(cors({
-    origin: function (origin, callback) {
-        if (!origin || allowedOrigins.includes(origin)) {
-            callback(null, true);
-        } else {
-            callback(new Error('Not allowed by CORS'));
-        }
-    },
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
-    credentials: true
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true
 }));
 
-app.options('*', cors()); // Pre-flight requests
+app.options('*', cors());
+
 
 
 app.use(express.json());
