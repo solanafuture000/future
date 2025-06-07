@@ -12,6 +12,9 @@ const nodemailer = require('nodemailer');
 const app = express();
 const wallet = Keypair.generate(); // صارف کے لیے سولانا والیٹ بنائی گئی
 const { Connection, PublicKey, LAMPORTS_PER_SOL, SystemProgram, Transaction, sendAndConfirmTransaction } = require('@solana/web3.js');
+const crypto = require('crypto');
+
+
 
 // سولانا نیٹورک سے کنیکٹ کریں (Devnet یا Mainnet)
 const connection = new Connection(
@@ -89,28 +92,65 @@ app.options('*', cors());
 app.use(express.json());
 app.use('/uploads', express.static('uploads'));
 
-const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
-    }
+
+// Step 1 & 2: ویریفیکیشن کوڈ جنریٹ اور ای میل کریں
+app.post('/send-verification-code', authenticate, async (req, res) => {
+  const user = await User.findById(req.user.id);
+  if (!user) return res.status(404).json({ message: 'User not found' });
+
+  // رینڈم 6 ہندسوں کا کوڈ
+  const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+
+  // 10 منٹ کا ایکسپائری ٹائم
+  const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
+
+  // ڈیٹا بیس میں سیٹ کریں
+  user.emailVerification = {
+    code: verificationCode,
+    expiresAt,
+    verified: false
+  };
+  await user.save();
+
+  // ای میل بھیجیں
+  const mailOptions = {
+    from: process.env.EMAIL_USER,
+    to: user.email,
+    subject: 'Your Verification Code',
+    text: `Hello ${user.username},\nYour verification code is: ${verificationCode}\nIt expires in 10 minutes.`
+  };
+
+  try {
+    await transporter.sendMail(mailOptions);
+    res.json({ message: 'Verification code sent to your email' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Failed to send verification email' });
+  }
 });
 
-async function sendWelcomeEmail(toEmail, username) {
-    const mailOptions = {
-        from: process.env.EMAIL_USER,
-        to: toEmail,
-        subject: 'Welcome to Solana Mining App',
-        text: `Hello ${username},\n\nThank you for registering in our Solana Mining App!`
-    };
-    try {
-        await transporter.sendMail(mailOptions);
-        console.log('✅ Email sent to:', toEmail);
-    } catch (error) {
-        console.error('❌ Email error:', error);
-    }
-}
+// Step 4: ویریفیکیشن کوڈ کی جانچ پڑتال کریں
+app.post('/verify-email-code', authenticate, async (req, res) => {
+  const { code } = req.body;
+  const user = await User.findById(req.user.id);
+  if (!user) return res.status(404).json({ message: 'User not found' });
+
+  if (!user.emailVerification || user.emailVerification.verified)
+    return res.status(400).json({ message: 'No verification pending or already verified' });
+
+  if (user.emailVerification.expiresAt < new Date())
+    return res.status(400).json({ message: 'Verification code expired' });
+
+  if (user.emailVerification.code !== code)
+    return res.status(400).json({ message: 'Invalid verification code' });
+
+  // ویریفائی کر دیں
+  user.emailVerification.verified = true;
+  await user.save();
+
+  res.json({ message: 'Email verified successfully!' });
+});
+
 
 mongoose.connect(process.env.MONGO_URI, {
     dbName: 'soldatabase',
@@ -336,29 +376,48 @@ app.post('/stake', authenticate, async (req, res) => {
     res.json({ message: `Staked ${amount} SOL for 30 days`, staking: user.staking });
 });
 
-// CLAIM STAKING REWARDS
+// ✅ اسٹیکنگ ریوارڈ کلیم کریں
 app.post('/stake/claim', authenticate, async (req, res) => {
-    const user = await User.findById(req.user.id);
-    if (!user) return res.status(404).json({ message: 'User not found' });
-    if (user.staking.amount === 0) return res.status(400).json({ message: 'No active staking' });
+    try {
+        const user = await User.findById(req.user.id);
+        if (!user) return res.status(404).json({ message: 'یوزر نہیں ملا' });
 
-    const now = new Date();
-    const daysStaked = Math.floor((now - user.staking.lastClaimed) / (1000 * 60 * 60 * 24));
-    if (daysStaked < 1) return res.status(400).json({ message: 'You can claim staking rewards once per day' });
+        if (!user.staking || user.staking.amount === 0) {
+            return res.status(400).json({ message: 'آپ نے ابھی تک کوئی staking نہیں کی' });
+        }
 
-    // Check 30 days lock period
-    if ((now - user.staking.startTime) < 30 * 24 * 60 * 60 * 1000)
-        return res.status(400).json({ message: 'Lock period of 30 days not finished yet' });
+        const now = new Date();
+        const lastClaimed = user.staking.lastClaimed || user.staking.startTime;
+        const daysStaked = Math.floor((now - lastClaimed) / (1000 * 60 * 60 * 24));
 
-    const reward = user.staking.amount * 0.02 * daysStaked; // 2% daily reward
+        if (daysStaked < 1) {
+            return res.status(400).json({ message: 'آپ دن میں ایک بار staking reward حاصل کر سکتے ہیں' });
+        }
 
-    user.balance += reward;
-    user.staking.lastClaimed = now;
-    await user.save();
+        const stakingDuration = now - new Date(user.staking.startTime);
+        if (stakingDuration < 30 * 24 * 60 * 60 * 1000) {
+            const daysRemaining = 30 - Math.floor(stakingDuration / (1000 * 60 * 60 * 24));
+            return res.status(400).json({ message: `30 دن مکمل نہیں ہوئے، ${daysRemaining} دن باقی ہیں` });
+        }
 
-    res.json({ message: `Claimed ${reward.toFixed(4)} SOL staking rewards`, newBalance: user.balance });
+        const reward = user.staking.amount * 0.02 * daysStaked;
+
+        user.balance += reward;
+        user.staking.lastClaimed = now;
+        await user.save();
+
+        res.json({
+            message: `✅ آپ نے ${reward.toFixed(4)} SOL کا staking reward حاصل کیا`,
+            newBalance: user.balance
+        });
+
+    } catch (error) {
+        console.error('Staking claim error:', error);
+        res.status(500).json({ message: 'ریوارڈ کلیم کرتے ہوئے کوئی مسئلہ ہوا' });
+    }
 });
 
+// Submit KYC selfie
 app.post('/kyc/submit', authenticate, upload.single('image'), async (req, res) => {
     const user = await User.findById(req.user.id);
     if (!user) return res.status(404).json({ message: 'User not found' });
@@ -378,110 +437,125 @@ app.post('/kyc/submit', authenticate, upload.single('image'), async (req, res) =
     await user.save();
 
     res.json({ message: 'KYC submitted, verification started' });
- });
+});
 
- app.get('/kyc/status', authenticate, async (req, res) => {
+// KYC status check
+app.get('/kyc/status', authenticate, async (req, res) => {
     const user = await User.findById(req.user.id);
     if (!user) return res.status(404).json({ message: 'User not found' });
 
     res.json({ kyc: user.kyc });
- });
+});
 
-
- setInterval(async () => {
-    const now = new Date();
-    const pendingUsers = await User.find({ 'kyc.status': 'pending' });
-
-    for (let user of pendingUsers) {
-        const submittedAt = user.kyc.verificationStartedAt;
-        if (!submittedAt) continue;
-
-        const diff = (now - submittedAt) / 1000 / 60; // minutes
-
-        if (diff > 5) {
-            // Simulate failure if not verified in 5 min
-            user.kyc.status = 'failed';
-            user.kyc.retryAfter = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000); // retry after 3 days
-            await user.save();
-        } else {
-            // Simulate success (for testing)
-            user.kyc.status = 'verified';
-            await user.save();
-        }
-    }
- }, 60 * 1000); // run every minute
-
- // KYC VERIFY (simulate face verification)
- app.post('/kyc/verify', authenticate, async (req, res) => {
+// KYC verify + 3 level referral reward
+app.post('/kyc/verify', authenticate, async (req, res) => {
     const user = await User.findById(req.user.id);
     if (!user) return res.status(404).json({ message: 'User not found' });
 
     if (user.kyc.status === 'verified') return res.status(400).json({ message: 'KYC already verified' });
-
     if (!user.kyc.verificationStartedAt) return res.status(400).json({ message: 'No KYC selfie submitted' });
 
     const now = new Date();
     const diffMs = now - user.kyc.verificationStartedAt;
     if (diffMs > 5 * 60 * 1000) {
         user.kyc.status = 'failed';
-        user.kyc.retryAfter = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000); // 3 days cooldown
+        user.kyc.retryAfter = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
         await user.save();
         return res.status(400).json({ message: 'Verification time exceeded 5 minutes. Retry after 3 days.' });
     }
 
-    // TODO: Replace this block with real face verification logic using external API or ML model.
-    // For now simulate success randomly:
-    const isVerified = Math.random() > 0.2; // 80% chance success
+    const isVerified = Math.random() > 0.2;
 
     if (isVerified) {
         user.kyc.status = 'verified';
         user.kyc.verificationStartedAt = null;
+
+        // 3 Level Referral Rewards
+        if (user.referredBy) {
+            const ref1 = await User.findOne({ _id: user.referredBy });
+            if (ref1) {
+                ref1.balance += 0.01;
+                await ref1.save();
+
+                if (ref1.referredBy) {
+                    const ref2 = await User.findOne({ _id: ref1.referredBy });
+                    if (ref2) {
+                        ref2.balance += 0.005;
+                        await ref2.save();
+
+                        if (ref2.referredBy) {
+                            const ref3 = await User.findOne({ _id: ref2.referredBy });
+                            if (ref3) {
+                                ref3.balance += 0.0025;
+                                await ref3.save();
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         await user.save();
-        return res.json({ message: 'KYC verified successfully!' });
+        return res.json({ message: 'KYC verified successfully and referral rewards distributed!' });
+
     } else {
         user.kyc.status = 'failed';
-        user.kyc.retryAfter = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000); // 3 days cooldown
+        user.kyc.retryAfter = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
         await user.save();
         return res.status(400).json({ message: 'Verification failed. Retry after 3 days.' });
     }
 });
 
-// MINING REWARD CLAIM
+// ✅ MINING REWARD CLAIM (Without Upline Rewards)
 app.post('/mine/claim', authenticate, async (req, res) => {
-    const user = await User.findById(req.user.id);
-    if (!user) return res.status(404).json({ message: 'User not found' });
+    try {
+        const user = await User.findById(req.user.id);
+        if (!user) return res.status(404).json({ message: 'User not found' });
 
-    const now = new Date();
-    const lastClaim = user.mining.lastClaimed || new Date(0);
-    const diffMs = now - lastClaim;
-    if (diffMs < 3 * 60 * 60 * 1000) { // 3 hours
-        return res.status(400).json({ message: 'You can claim mining rewards once every 3 hours' });
-    }
+        const now = new Date();
 
-    // Base reward amount (example fixed or dynamic based on your rules)
-    let reward = 0.01; // base mining reward
+        // Ensure mining object exists
+        if (!user.mining) user.mining = {};
 
-    // Add referral bonus 5% per direct referral verified
-    if (user.referrals.length > 0) {
-        const verifiedReferralCount = await User.countDocuments({ username: { $in: user.referrals.map(r => r.username) }, 'kyc.status': 'verified' });
-        if (verifiedReferralCount > 0) {
-            reward += reward * 0.05 * verifiedReferralCount;
+        const lastClaim = user.mining.lastClaimed || new Date(0);
+        const diffMs = now - lastClaim;
+
+        if (diffMs < 3 * 60 * 60 * 1000) {
+            return res.status(400).json({ message: 'You can claim mining rewards once every 3 hours' });
         }
+
+        // 🪙 Base mining reward
+        let reward = 0.00075;
+
+        // ➕ Referral Bonus: 5% extra per verified referral
+        if (user.referrals && user.referrals.length > 0) {
+            const referralUsernames = user.referrals.map(r => typeof r === 'string' ? r : r.username);
+            const verifiedReferralCount = await User.countDocuments({
+                username: { $in: referralUsernames },
+                'kyc.status': 'verified'
+            });
+
+            if (verifiedReferralCount > 0) {
+                reward += reward * 0.05 * verifiedReferralCount;
+            }
+        }
+
+        // ✅ Update user's reward
+        user.balance += reward;
+        user.mining.lastClaimed = now;
+        await user.save();
+
+        res.json({
+            message: `You mined ${reward.toFixed(4)} SOL!`,
+            balance: user.balance
+        });
+
+    } catch (error) {
+        console.error('Mining reward error:', error);
+        res.status(500).json({ message: 'An error occurred while claiming mining reward.' });
     }
-
-    // Add multi-level referral rewards for uplines (5% per level)
-    const uplines = await getUplineUsers(user.username, 10);
-    for (const upline of uplines) {
-        upline.balance += 0.01; // 10 level referral reward
-        await upline.save();
-    }
-
-    user.balance += reward;
-    user.mining.lastClaimed = now;
-    await user.save();
-
-    res.json({ message: `You mined ${reward.toFixed(4)} SOL!`, balance: user.balance });
 });
+
 
 // Start server
 const PORT = process.env.PORT || 3005;
