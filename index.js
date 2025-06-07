@@ -15,7 +15,7 @@ const { Connection, PublicKey, LAMPORTS_PER_SOL, SystemProgram, Transaction, sen
 const crypto = require('crypto');
 const cors = require('cors');
 
-// ای میل ٹرانسپورٹر سیٹ اپ
+// Email transporter setup
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
@@ -24,13 +24,13 @@ const transporter = nodemailer.createTransport({
   }
 });
 
-// سولانا کنکشن
+// Solana connection
 const connection = new Connection(
   process.env.SOLANA_RPC_URL || "https://api.devnet.solana.com", 
   'confirmed'
 );
 
-// مڈل ویئر
+// Middleware
 const allowedOrigins = [
   'https://solana-future-24bf1.web.app',
   'https://solana-future-24bf1.firebaseapp.com',
@@ -54,14 +54,14 @@ app.options('*', cors());
 app.use(express.json());
 app.use('/uploads', express.static('uploads'));
 
-// MongoDB کنکشن
+// MongoDB connection
 mongoose.connect(process.env.MONGO_URI, {
     dbName: 'soldatabase',
 }).then(() => {
     console.log('✅ MongoDB connected');
 }).catch(err => console.error('❌ MongoDB error:', err));
 
-// یوزر اسکیما میں ای میل تصدیق کے فیلڈز شامل
+// User Schema with email verification fields
 const userSchema = new mongoose.Schema({
     username: { type: String, unique: true, required: true },
     email: { 
@@ -72,7 +72,7 @@ const userSchema = new mongoose.Schema({
             validator: function(v) {
                 return /^[\w-]+(\.[\w-]+)*@([\w-]+\.)+[a-zA-Z]{2,7}$/.test(v);
             },
-            message: props => `${props.value} درست ای میل ایڈریس نہیں ہے!`
+            message: props => `${props.value} is not a valid email address!`
         }
     },
     password: { type: String, required: true },
@@ -105,7 +105,7 @@ const userSchema = new mongoose.Schema({
 
 const User = mongoose.model('User', userSchema);
 
-// تصدیق مڈل ویئر
+// Authentication middleware
 const authenticate = (req, res, next) => {
     const authHeader = req.headers.authorization;
     if (!authHeader) return res.status(401).json({ message: 'Unauthorized - Token missing' });
@@ -120,7 +120,7 @@ const authenticate = (req, res, next) => {
     }
 };
 
-// فائل اپلوڈ سیٹ اپ
+// File upload setup
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
         const dir = './uploads';
@@ -133,7 +133,7 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
-// ریفرل چین کیلکولیٹر
+// Referral chain calculator
 async function getUplineUsers(username, levels = 10) {
     let uplines = [];
     let currentUser = await User.findOne({ username });
@@ -147,23 +147,32 @@ async function getUplineUsers(username, levels = 10) {
     return uplines;
 }
 
-// رجسٹریشن روٹ میں ای میل تصدیق شامل
+// Updated Registration Route with Proper Verification Flow
 app.post('/register', async (req, res) => {
     try {
         const { username, email, password, referredBy } = req.body;
         if (!username || !email || !password)
-            return res.status(400).json({ message: 'براہ کرم صارف نام، ای میل اور پاس ورڈ فراہم کریں' });
+            return res.status(400).json({ 
+                success: false,
+                message: 'Please provide username, email, and password'
+            });
 
         const existingEmail = await User.findOne({ email });
-        if (existingEmail) return res.status(400).json({ message: 'یہ ای میل پہلے سے موجود ہے' });
+        if (existingEmail) return res.status(400).json({ 
+            success: false,
+            message: 'Email already exists'
+        });
 
         const existingUsername = await User.findOne({ username });
-        if (existingUsername) return res.status(400).json({ message: 'یہ صارف نام پہلے سے موجود ہے' });
+        if (existingUsername) return res.status(400).json({ 
+            success: false,
+            message: 'Username already taken'
+        });
 
         const hashed = await bcrypt.hash(password, 10);
         const wallet = Keypair.generate();
         const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
-        const verificationCodeExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 منٹ
+        const verificationCodeExpires = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
         const newUser = new User({
             username,
@@ -189,15 +198,15 @@ app.post('/register', async (req, res) => {
 
         await newUser.save();
 
-        // تصدیقی ای میل بھیجیں
+        // Send verification email
         await transporter.sendMail({
             from: process.env.EMAIL_USER,
             to: email,
-            subject: 'آپ کا تصدیقی کوڈ',
-            text: `سلام ${username},\nآپ کا تصدیقی کوڈ ہے: ${verificationCode}\nیہ کوڈ 10 منٹ کے لیے درست رہے گا۔`
+            subject: 'Your Verification Code',
+            text: `Hello ${username},\nYour verification code is: ${verificationCode}\nThis code expires in 10 minutes.`
         });
 
-        // ریفرل ریوارڈز (موجودہ منطق)
+        // Referral rewards
         if (referredBy) {
             const referrer = await User.findOne({ username: referredBy });
             if (referrer) {
@@ -214,48 +223,69 @@ app.post('/register', async (req, res) => {
         }
 
         res.status(201).json({ 
-            message: 'رجسٹریشن کامیاب۔ براہ کرم اپنے ای میل پر تصدیقی کوڈ چیک کریں۔',
-            requiresVerification: true
+            success: true,
+            message: 'Registration successful. Please check your email for the verification code.',
+            requiresVerification: true,
+            verificationEmailSent: true,
+            nextStep: 'verify_email'
         });
 
     } catch (err) {
         console.error(err);
-        res.status(500).json({ message: 'سرور میں خرابی' });
+        res.status(500).json({ 
+            success: false,
+            message: 'Server error'
+        });
     }
 });
 
-// ای میل تصدیق کا نیا روٹ
+// Email Verification Route
 app.post('/verify-email', async (req, res) => {
     try {
         const { email, code } = req.body;
         if (!email || !code) {
-            return res.status(400).json({ message: 'ای میل اور تصدیقی کوڈ درکار ہے' });
+            return res.status(400).json({ 
+                success: false,
+                message: 'Email and verification code required'
+            });
         }
 
         const user = await User.findOne({ email });
         if (!user) {
-            return res.status(404).json({ message: 'صارف نہیں ملا' });
+            return res.status(404).json({ 
+                success: false,
+                message: 'User not found'
+            });
         }
 
         if (user.emailVerified) {
-            return res.status(400).json({ message: 'ای میل پہلے ہی تصدیق شدہ ہے' });
+            return res.status(400).json({ 
+                success: false,
+                message: 'Email already verified'
+            });
         }
 
         if (user.verificationCode !== code) {
-            return res.status(400).json({ message: 'غلط تصدیقی کوڈ' });
+            return res.status(400).json({ 
+                success: false,
+                message: 'Invalid verification code'
+            });
         }
 
         if (new Date() > user.verificationCodeExpires) {
-            return res.status(400).json({ message: 'تصدیقی کوڈ کی میعاد ختم ہوگئی ہے' });
+            return res.status(400).json({ 
+                success: false,
+                message: 'Verification code expired'
+            });
         }
 
-        // تصدیق مکمل کریں
+        // Complete verification
         user.emailVerified = true;
         user.verificationCode = undefined;
         user.verificationCodeExpires = undefined;
         await user.save();
 
-        // ٹوکن بنائیں اور لاگ ان کروائیں
+        // Create token and log user in
         const token = jwt.sign(
             { id: user._id, username: user.username }, 
             process.env.JWT_SECRET || 'secretKey', 
@@ -263,7 +293,8 @@ app.post('/verify-email', async (req, res) => {
         );
 
         res.json({ 
-            message: 'ای میل تصدیق کامیاب!',
+            success: true,
+            message: 'Email verified successfully!',
             token,
             user: {
                 id: user._id,
@@ -274,68 +305,103 @@ app.post('/verify-email', async (req, res) => {
         });
 
     } catch (err) {
-        console.error('ای میل تصدیق میں خرابی:', err);
-        res.status(500).json({ message: 'ای میل تصدیق کے دوران سرور میں خرابی' });
+        console.error('Email verification error:', err);
+        res.status(500).json({ 
+            success: false,
+            message: 'Server error during email verification'
+        });
     }
 });
 
-// تصدیقی کوڈ دوبارہ بھیجنے کا روٹ
+// Resend Verification Code Route
 app.post('/resend-verification', async (req, res) => {
     try {
         const { email } = req.body;
         if (!email) {
-            return res.status(400).json({ message: 'ای میل درکار ہے' });
+            return res.status(400).json({ 
+                success: false,
+                message: 'Email is required'
+            });
         }
 
         const user = await User.findOne({ email });
         if (!user) {
-            return res.status(404).json({ message: 'صارف نہیں ملا' });
+            return res.status(404).json({ 
+                success: false,
+                message: 'User not found'
+            });
         }
 
         if (user.emailVerified) {
-            return res.status(400).json({ message: 'ای میل پہلے ہی تصدیق شدہ ہے' });
+            return res.status(400).json({ 
+                success: false,
+                message: 'Email already verified'
+            });
         }
 
-        // نیا کوڈ جنریٹ کریں
+        // Generate new code
         const newCode = Math.floor(100000 + Math.random() * 900000).toString();
         user.verificationCode = newCode;
         user.verificationCodeExpires = new Date(Date.now() + 10 * 60 * 1000);
         await user.save();
 
-        // نیا ای میل بھیجیں
+        // Send new email
         await transporter.sendMail({
             from: process.env.EMAIL_USER,
             to: email,
-            subject: 'آپ کا نیا تصدیقی کوڈ',
-            text: `سلام ${user.username},\nآپ کا نیا تصدیقی کوڈ ہے: ${newCode}\nیہ کوڈ 10 منٹ کے لیے درست رہے گا۔`
+            subject: 'Your New Verification Code',
+            text: `Hello ${user.username},\nYour new verification code is: ${newCode}\nThis code expires in 10 minutes.`
         });
 
-        res.json({ message: 'نیا تصدیقی کوڈ آپ کے ای میل پر بھیج دیا گیا ہے' });
+        res.json({ 
+            success: true,
+            message: 'New verification code sent to your email'
+        });
 
     } catch (err) {
-        console.error('تصدیقی کوڈ دوبارہ بھیجنے میں خرابی:', err);
-        res.status(500).json({ message: 'تصدیقی کوڈ دوبارہ بھیجنے میں ناکامی' });
+        console.error('Resend verification error:', err);
+        res.status(500).json({ 
+            success: false,
+            message: 'Failed to resend verification code'
+        });
     }
 });
 
-// لاگ ان روٹ میں تصدیق کی شرط شامل
+// Updated Login Route with Verification Check
 app.post('/login', async (req, res) => {
     try {
         const { email, password } = req.body;
         if (!email || !password)
-            return res.status(400).json({ message: 'براہ کرم ای میل اور پاس ورڈ فراہم کریں' });
+            return res.status(400).json({ 
+                success: false,
+                message: 'Please provide email and password'
+            });
 
         const user = await User.findOne({ email });
-        if (!user) return res.status(400).json({ message: 'غلط ای میل یا پاس ورڈ' });
+        if (!user) return res.status(400).json({ 
+            success: false,
+            message: 'Invalid email or password'
+        });
 
         const match = await bcrypt.compare(password, user.password);
-        if (!match) return res.status(400).json({ message: 'غلط ای میل یا پاس ورڈ' });
+        if (!match) return res.status(400).json({ 
+            success: false,
+            message: 'Invalid email or password'
+        });
 
+        // Strict verification check
         if (!user.emailVerified) {
+            // Option to resend verification code
+            const canResend = !user.verificationCodeExpires || 
+                            new Date() > new Date(user.verificationCodeExpires);
+
             return res.status(403).json({ 
-                message: 'براہ کرم پہلے اپنے ای میل کی تصدیق کریں',
+                success: false,
+                message: 'Please verify your email first',
                 requiresVerification: true,
-                email: user.email
+                email: user.email,
+                canResendVerification: canResend,
+                nextStep: 'verify_email'
             });
         }
 
@@ -346,6 +412,7 @@ app.post('/login', async (req, res) => {
         );
 
         res.json({ 
+            success: true,
             token,
             user: {
                 id: user._id,
@@ -356,14 +423,17 @@ app.post('/login', async (req, res) => {
         });
     } catch (err) {
         console.error(err);
-        res.status(500).json({ message: 'سرور میں خرابی' });
+        res.status(500).json({ 
+            success: false,
+            message: 'Server error'
+        });
     }
 });
 
-// [یہاں آپ کے تمام موجودہ روٹس بالکل ویسے ہی رہیں گے]
+// [Rest of your existing routes remain exactly the same]
 // PROFILE, DEPOSIT, WITHDRAW, STAKE, STAKE/CLAIM, KYC, MINING, etc.
 
-// SOL ڈیپازٹ کی تصدیق
+// SOL Deposit Verification
 app.post('/deposit/verify', async (req, res) => {
   const { txHash, publicKey } = req.body;
   
@@ -372,17 +442,17 @@ app.post('/deposit/verify', async (req, res) => {
     const recipient = tx.transaction.message.accountKeys[1].toString();
     
     if (recipient !== publicKey) {
-      return res.status(400).json({ error: "ٹرانزیکشن غلط والیٹ پر گئی ہے!" });
+      return res.status(400).json({ error: "Transaction sent to wrong wallet!" });
     }
 
     const amount = (tx.meta.postBalances[1] - tx.meta.preBalances[1]) / LAMPORTS_PER_SOL;
     res.json({ success: true, amount });
   } catch (error) {
-    res.status(500).json({ error: "ٹرانزیکشن چیک کرنے میں ناکامی!" });
+    res.status(500).json({ error: "Failed to verify transaction!" });
   }
 });
 
-// SOL وٹھڈراال
+// SOL Withdrawal
 app.post('/withdraw/sol', async (req, res) => {
   const { secretKey, recipientAddress, amount } = req.body;
   
@@ -402,64 +472,64 @@ app.post('/withdraw/sol', async (req, res) => {
     const txHash = await sendAndConfirmTransaction(connection, transaction, [fromWallet]);
     res.json({ success: true, txHash });
   } catch (error) {
-    res.status(500).json({ error: "وٹھڈراال ناکام!" });
+    res.status(500).json({ error: "Withdrawal failed!" });
   }
 });
 
-// پروفائل
+// Profile
 app.get('/profile', authenticate, async (req, res) => {
     const user = await User.findById(req.user.id).select('-password -solanaWallet.secretKey');
-    if (!user) return res.status(404).json({ message: 'صارف نہیں ملا' });
+    if (!user) return res.status(404).json({ message: 'User not found' });
     res.json(user);
 });
 
-// ڈیپازٹ
+// Deposit
 app.post('/deposit', authenticate, async (req, res) => {
     const { amount } = req.body;
     if (typeof amount !== 'number' || amount < 0.3)
-        return res.status(400).json({ message: 'کم از کم ڈیپازٹ 0.3 SOL ہے' });
+        return res.status(400).json({ message: 'Minimum deposit is 0.3 SOL' });
 
     const user = await User.findById(req.user.id);
-    if (!user) return res.status(404).json({ message: 'صارف نہیں ملا' });
+    if (!user) return res.status(404).json({ message: 'User not found' });
 
     user.balance += amount;
     await user.save();
 
-    res.json({ message: `${amount} SOL ڈیپازٹ کر دیا گیا`, newBalance: user.balance });
+    res.json({ message: `${amount} SOL deposited`, newBalance: user.balance });
 });
 
-// وٹھڈراال
+// Withdrawal
 app.post('/withdraw', authenticate, async (req, res) => {
     const { amount } = req.body;
     if (typeof amount !== 'number' || amount < 0.3)
-        return res.status(400).json({ message: 'کم از کم وٹھڈراال 0.3 SOL ہے' });
+        return res.status(400).json({ message: 'Minimum withdrawal is 0.3 SOL' });
 
     const user = await User.findById(req.user.id);
-    if (!user) return res.status(404).json({ message: 'صارف نہیں ملا' });
+    if (!user) return res.status(404).json({ message: 'User not found' });
 
     if (user.balance < amount)
-        return res.status(400).json({ message: 'ناکافی بیلنس' });
+        return res.status(400).json({ message: 'Insufficient balance' });
 
     user.balance -= amount;
     await user.save();
 
-    res.json({ message: `${amount} SOL وٹھڈراال کر لیا گیا`, newBalance: user.balance });
+    res.json({ message: `${amount} SOL withdrawn`, newBalance: user.balance });
 });
 
-// اسٹیک
+// Stake
 app.post('/stake', authenticate, async (req, res) => {
     const { amount } = req.body;
     if (typeof amount !== 'number' || amount < 0.5)
-        return res.status(400).json({ message: 'کم از کم اسٹیک 0.5 SOL ہے' });
+        return res.status(400).json({ message: 'Minimum stake is 0.5 SOL' });
 
     const user = await User.findById(req.user.id);
-    if (!user) return res.status(404).json({ message: 'صارف نہیں ملا' });
+    if (!user) return res.status(404).json({ message: 'User not found' });
 
     if (user.balance < amount)
-        return res.status(400).json({ message: 'اسٹیک کرنے کے لیے ناکافی بیلنس' });
+        return res.status(400).json({ message: 'Insufficient balance for staking' });
 
     if (user.staking.amount > 0)
-        return res.status(400).json({ message: 'آپ پہلے ہی فعال اسٹیکنگ کر چکے ہیں' });
+        return res.status(400).json({ message: 'You already have an active stake' });
 
     user.balance -= amount;
     user.staking.amount = amount;
@@ -467,17 +537,17 @@ app.post('/stake', authenticate, async (req, res) => {
     user.staking.lastClaimed = new Date();
     await user.save();
 
-    res.json({ message: `${amount} SOL 30 دنوں کے لیے اسٹیک کر دیا گیا`, staking: user.staking });
+    res.json({ message: `${amount} SOL staked for 30 days`, staking: user.staking });
 });
 
-// اسٹیکنگ ریوارڈ کلیم
+// Staking Reward Claim
 app.post('/stake/claim', authenticate, async (req, res) => {
     try {
         const user = await User.findById(req.user.id);
-        if (!user) return res.status(404).json({ message: 'صارف نہیں ملا' });
+        if (!user) return res.status(404).json({ message: 'User not found' });
 
         if (!user.staking || user.staking.amount === 0) {
-            return res.status(400).json({ message: 'آپ نے ابھی تک کوئی اسٹیکنگ نہیں کی' });
+            return res.status(400).json({ message: 'You have no active staking' });
         }
 
         const now = new Date();
@@ -485,13 +555,13 @@ app.post('/stake/claim', authenticate, async (req, res) => {
         const daysStaked = Math.floor((now - lastClaimed) / (1000 * 60 * 60 * 24));
 
         if (daysStaked < 1) {
-            return res.status(400).json({ message: 'آپ دن میں ایک بار اسٹیکنگ ریوارڈ حاصل کر سکتے ہیں' });
+            return res.status(400).json({ message: 'You can claim staking rewards once per day' });
         }
 
         const stakingDuration = now - new Date(user.staking.startTime);
         if (stakingDuration < 30 * 24 * 60 * 60 * 1000) {
             const daysRemaining = 30 - Math.floor(stakingDuration / (1000 * 60 * 60 * 24));
-            return res.status(400).json({ message: `30 دن مکمل نہیں ہوئے، ${daysRemaining} دن باقی ہیں` });
+            return res.status(400).json({ message: `30 days not completed, ${daysRemaining} days remaining` });
         }
 
         const reward = user.staking.amount * 0.02 * daysStaked;
@@ -501,25 +571,25 @@ app.post('/stake/claim', authenticate, async (req, res) => {
         await user.save();
 
         res.json({
-            message: `✅ آپ نے ${reward.toFixed(4)} SOL کا اسٹیکنگ ریوارڈ حاصل کیا`,
+            message: `✅ You claimed ${reward.toFixed(4)} SOL staking reward`,
             newBalance: user.balance
         });
 
     } catch (error) {
-        console.error('اسٹیکنگ کلیم میں خرابی:', error);
-        res.status(500).json({ message: 'ریوارڈ کلیم کرتے ہوئے کوئی مسئلہ ہوا' });
+        console.error('Staking claim error:', error);
+        res.status(500).json({ message: 'Error claiming reward' });
     }
 });
 
-// KYC سلفی جمع کروائیں
+// KYC Selfie Submission
 app.post('/kyc/submit', authenticate, upload.single('image'), async (req, res) => {
     const user = await User.findById(req.user.id);
-    if (!user) return res.status(404).json({ message: 'صارف نہیں ملا' });
+    if (!user) return res.status(404).json({ message: 'User not found' });
 
     const now = new Date();
 
     if (user.kyc.retryAfter && user.kyc.retryAfter > now) {
-        return res.status(400).json({ message: 'دوبارہ کوشش کی اجازت: ' + user.kyc.retryAfter });
+        return res.status(400).json({ message: 'Retry allowed after: ' + user.kyc.retryAfter });
     }
 
     user.kyc.imagePath = req.file.path;
@@ -529,24 +599,24 @@ app.post('/kyc/submit', authenticate, upload.single('image'), async (req, res) =
 
     await user.save();
 
-    res.json({ message: 'KYC جمع کروائی گئی، تصدیق شروع ہو گئی' });
+    res.json({ message: 'KYC submitted, verification started' });
 });
 
-// KYC کی حیثیت چیک کریں
+// KYC Status Check
 app.get('/kyc/status', authenticate, async (req, res) => {
     const user = await User.findById(req.user.id);
-    if (!user) return res.status(404).json({ message: 'صارف نہیں ملا' });
+    if (!user) return res.status(404).json({ message: 'User not found' });
 
     res.json({ kyc: user.kyc });
 });
 
-// KYC تصدیق کریں + 3 سطحی ریفرل ریوارڈ
+// KYC Verification + 3-level Referral Reward
 app.post('/kyc/verify', authenticate, async (req, res) => {
     const user = await User.findById(req.user.id);
-    if (!user) return res.status(404).json({ message: 'صارف نہیں ملا' });
+    if (!user) return res.status(404).json({ message: 'User not found' });
 
-    if (user.kyc.status === 'verified') return res.status(400).json({ message: 'KYC پہلے ہی تصدیق شدہ ہے' });
-    if (!user.kyc.verificationStartedAt) return res.status(400).json({ message: 'کوئی KYC سلفی جمع نہیں ہوئی' });
+    if (user.kyc.status === 'verified') return res.status(400).json({ message: 'KYC already verified' });
+    if (!user.kyc.verificationStartedAt) return res.status(400).json({ message: 'No KYC selfie submitted' });
 
     const now = new Date();
     const diffMs = now - user.kyc.verificationStartedAt;
@@ -554,7 +624,7 @@ app.post('/kyc/verify', authenticate, async (req, res) => {
         user.kyc.status = 'failed';
         user.kyc.retryAfter = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
         await user.save();
-        return res.status(400).json({ message: 'تصدیق کا وقت 5 منٹ سے زیادہ ہو گیا۔ 3 دن بعد دوبارہ کوشش کریں۔' });
+        return res.status(400).json({ message: 'Verification took longer than 5 minutes. Retry after 3 days.' });
     }
 
     const isVerified = Math.random() > 0.2;
@@ -588,21 +658,21 @@ app.post('/kyc/verify', authenticate, async (req, res) => {
         }
 
         await user.save();
-        return res.json({ message: 'KYC کامیابی سے تصدیق ہو گئی اور ریفرل ریوارڈز تقسیم کر دیے گئے!' });
+        return res.json({ message: 'KYC verified successfully! Referral rewards distributed.' });
 
     } else {
         user.kyc.status = 'failed';
         user.kyc.retryAfter = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
         await user.save();
-        return res.status(400).json({ message: 'تصدیق ناکام۔ 3 دن بعد دوبارہ کوشش کریں۔' });
+        return res.status(400).json({ message: 'Verification failed. Retry after 3 days.' });
     }
 });
 
-// مائننگ ریوارڈ کلیم
+// Mining Reward Claim
 app.post('/mine/claim', authenticate, async (req, res) => {
     try {
         const user = await User.findById(req.user.id);
-        if (!user) return res.status(404).json({ message: 'صارف نہیں ملا' });
+        if (!user) return res.status(404).json({ message: 'User not found' });
 
         const now = new Date();
 
@@ -612,7 +682,7 @@ app.post('/mine/claim', authenticate, async (req, res) => {
         const diffMs = now - lastClaim;
 
         if (diffMs < 3 * 60 * 60 * 1000) {
-            return res.status(400).json({ message: 'آپ ہر 3 گھنٹے میں ایک بار مائننگ ریوارڈ حاصل کر سکتے ہیں' });
+            return res.status(400).json({ message: 'You can claim mining rewards every 3 hours' });
         }
 
         let reward = 0.00075;
@@ -634,18 +704,18 @@ app.post('/mine/claim', authenticate, async (req, res) => {
         await user.save();
 
         res.json({
-            message: `آپ نے ${reward.toFixed(4)} SOL مائن کر لیے!`,
+            message: `You mined ${reward.toFixed(4)} SOL!`,
             balance: user.balance
         });
 
     } catch (error) {
-        console.error('مائننگ ریوارڈ میں خرابی:', error);
-        res.status(500).json({ message: 'مائننگ ریوارڈ کلیم کرتے ہوئے کوئی مسئلہ ہوا۔' });
+        console.error('Mining reward error:', error);
+        res.status(500).json({ message: 'Error claiming mining reward.' });
     }
 });
 
-// سرور شروع کریں
+// Start server
 const PORT = process.env.PORT || 3005;
 app.listen(PORT, () => {
-    console.log(`🚀 سرور پورٹ ${PORT} پر چل رہا ہے`);
+    console.log(`🚀 Server running on port ${PORT}`);
 });
