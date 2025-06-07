@@ -117,11 +117,13 @@
   </style>
 </head>
 <body>
- <script type="module" src="firebase-auth.js"></script>
+
+  <script type="module" src="firebase-auth.js"></script>
 
   <img src="images/solana-logo.png" alt="Solana Logo" class="logo" />
   <h1>Create Your Account</h1>
-  <form id="registerForm">
+
+  <form id="registerForm" autocomplete="off">
     <input type="text" id="username" placeholder="Username" required minlength="3" maxlength="20" />
     <input type="email" id="email" placeholder="Email" required />
     <input type="password" id="password" placeholder="Password" required minlength="6" />
@@ -129,11 +131,11 @@
     <input type="text" id="referralCode" placeholder="Referral Code (if any)" maxlength="20" />
     <button type="submit">Register</button>
     <p style="margin-top: 10px;">Already have an account? <a href="login.html" style="color:#00ffa3;">Login here</a></p>
-    <p style="margin-top: 10px;">
-      <a href="forgot-password.html" style="color:#00ffa3;">Forgot Password?</a>
-    </p>
+    <p style="margin-top: 10px;"><a href="forgot-password.html" style="color:#00ffa3;">Forgot Password?</a></p>
   </form>
+
   <div id="message"></div>
+
   <div class="social-icons">
     <a href="https://youtube.com/@solanafuture" target="_blank">
       <img src="images/youtube.png" alt="YouTube" />
@@ -181,11 +183,12 @@
       }
 
       try {
-        const res = await fetch('https://solana-future.onrender.com//register', {
+        const res = await fetch('https://solana-future.onrender.com/register', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ username, email, password, referralCode }),
         });
+
         const data = await res.json();
 
         if (res.ok) {
