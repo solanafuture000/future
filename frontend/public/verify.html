@@ -122,7 +122,7 @@
         if (res.ok) {
           messageDiv.textContent = 'Verification successful! Redirecting to login...';
           messageDiv.className = 'success';
-          setTimeout(() => window.location.href = 'login.html', 2000);
+          setTimeout(() => window.location.href = 'verify.html', 2000);
         } else {
           messageDiv.textContent = data.message || 'Invalid code.';
           messageDiv.className = 'error';
