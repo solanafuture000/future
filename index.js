@@ -34,7 +34,8 @@ const connection = new Connection(
 const allowedOrigins = [
   'https://solana-future-24bf1.web.app',
   'https://solana-future-24bf1.firebaseapp.com',
-  'http://localhost:3000'
+  'https://solana-future.onrender.com',
+  'http://localhost:3005'
 ];
 
 app.use(cors({
