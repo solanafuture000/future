@@ -1,4 +1,4 @@
-i<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -181,7 +181,7 @@ i<!DOCTYPE html>
       }
 
       try {
-        const res = await fetch('https://solana-future.onrender.com//register', {
+        const res = await fetch('https://solana-future.onrender.com/register', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ username, email, password, referralCode }),
@@ -191,7 +191,7 @@ i<!DOCTYPE html>
         if (res.ok) {
           messageDiv.textContent = 'Registration successful! Redirecting to login...';
           messageDiv.className = 'success';
-          setTimeout(() => window.location.href = 'verify.html', 2000);
+          setTimeout(() => window.location.href = 'login.html', 2000);
         } else {
           messageDiv.textContent = data.message || 'Registration failed.';
           messageDiv.className = 'error';
