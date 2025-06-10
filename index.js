@@ -1,3 +1,4 @@
+
 require('dotenv').config();
 
 const express = require('express');
@@ -262,6 +263,21 @@ app.get('/leaderboard', authenticate, async (req, res) => {
   }
 });
 
+    rewardHistory
+app.get('/rewards/history', authenticate, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    res.json({
+      rewards: user.rewardHistory || []
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 // STAKE
 app.post('/stake', authenticate, async (req, res) => {
     const { amount } = req.body;
@@ -382,6 +398,7 @@ app.post('/kyc/verify', authenticate, async (req, res) => {
         res.status(500).json({ message: 'KYC verification error' });
     }
 });
+
 // MINING REWARD CLAIM
 app.post('/mine/claim', authenticate, async (req, res) => {
     const user = await User.findById(req.user.id);
