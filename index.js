@@ -122,68 +122,89 @@ async function getUplineUsers(username, levels = 10) {
     return uplines;
 }
 
-// REGISTER
+/ REGISTER
 app.post('/register', async (req, res) => {
-    try {
-        const { username, email, password, referredBy } = req.body;
-        if (!username || !email || !password)
-            return res.status(400).json({ message: 'Please provide username, email and password' });
+  try {
+    const { username, email, password, referredBy } = req.body;
 
-        const existingEmail = await User.findOne({ email });
-        if (existingEmail) return res.status(400).json({ message: 'Email already exists' });
+    if (!username || !email || !password)
+      return res.status(400).json({ success: false, message: 'Please provide username, email and password' });
 
-        const existingUsername = await User.findOne({ username });
-        if (existingUsername) return res.status(400).json({ message: 'Username already exists' });
+    const existingEmail = await User.findOne({ email });
+    if (existingEmail)
+      return res.status(400).json({ success: false, message: 'Email already exists' });
 
-        const hashed = await bcrypt.hash(password, 10);
-        const wallet = Keypair.generate();
+    const existingUsername = await User.findOne({ username });
+    if (existingUsername)
+      return res.status(400).json({ success: false, message: 'Username already exists' });
 
-        const newUser = new User({
-            username,
-            email,
-            password: hashed,
-            solanaWallet: {
-                publicKey: wallet.publicKey.toString(),
-                secretKey: Buffer.from(wallet.secretKey).toString('base64'),
-            },
-            referredBy,
-            balance: 0, // starting balance 0; referral rewards handled separately
-            mining: {
-                lastClaimed: new Date(0), // set to epoch so mining reward is available immediately
-            },
-            kyc: {
-                status: 'pending',
-            },
-            referrals: [],
-        });
+    const hashed = await bcrypt.hash(password, 10);
+    const wallet = Keypair.generate();
 
-        await newUser.save();
+    const newUser = new User({
+      username,
+      email,
+      password: hashed,
+      solanaWallet: {
+        publicKey: wallet.publicKey.toString(),
+        secretKey: Buffer.from(wallet.secretKey).toString('base64'),
+      },
+      referredBy,
+      balance: 0,
+      mining: {
+        lastClaimed: new Date(0),
+      },
+      kyc: {
+        status: 'pending',
+      },
+      referrals: [],
+    });
 
-        // Referral rewards on joining
-        if (referredBy) {
-            const referrer = await User.findOne({ username: referredBy });
-            if (referrer) {
-                referrer.balance += 0.01; // direct referral reward
-                referrer.referrals.push({ username });
-                await referrer.save();
+    await newUser.save();
 
-                // 10-level upline referral rewards (0.01 SOL each)
-                const uplines = await getUplineUsers(referredBy, 10);
-                for (let upline of uplines) {
-                    upline.balance += 0.01;
-                    await upline.save();
-                }
-            }
+    // Referral logic
+    if (referredBy) {
+      const referrer = await User.findOne({ username: referredBy });
+      if (referrer) {
+        referrer.balance += 0.01;
+        referrer.referrals.push({ username });
+        await referrer.save();
+
+        const uplines = await getUplineUsers(referredBy, 10);
+        for (let upline of uplines) {
+          upline.balance += 0.01;
+          await upline.save();
         }
-
-        await sendWelcomeEmail(email, username);
-
-        res.status(201).json({ message: 'Registered successfully' });
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ message: 'Server error' });
+      }
     }
+
+    // Welcome Email
+    await sendWelcomeEmail(email, username);
+
+    // Generate token
+    const token = jwt.sign(
+      { id: newUser._id, username: newUser.username },
+      process.env.JWT_SECRET || 'secretKey',
+      { expiresIn: '7d' }
+    );
+
+    // ✅ Return proper success response
+    res.status(201).json({
+      success: true,
+      message: 'Registered successfully',
+      token,
+      user: {
+        username: newUser.username,
+        email: newUser.email
+      }
+    });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
 });
+
 
 // LOGIN
 app.post('/login', async (req, res) => {
