@@ -264,7 +264,7 @@ app.get('/leaderboard', authenticate, async (req, res) => {
 });
 
     
-a// GET /rewards/history - fetch user reward history
+// GET /rewards/history - fetch user reward history
 app.get('/rewards/history', authenticate, async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
