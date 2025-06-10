@@ -122,7 +122,6 @@ async function getUplineUsers(username, levels = 10) {
     }
     return uplines;
 }
-
 // REGISTER
 app.post('/register', async (req, res) => {
   try {
@@ -150,7 +149,7 @@ app.post('/register', async (req, res) => {
         publicKey: wallet.publicKey.toString(),
         secretKey: Buffer.from(wallet.secretKey).toString('base64'),
       },
-      referredBy,
+      referredBy, // just store it for later
       balance: 0,
       mining: {
         lastClaimed: new Date(0),
@@ -163,33 +162,23 @@ app.post('/register', async (req, res) => {
 
     await newUser.save();
 
-    // Referral logic
+    // Only save referral reference — DO NOT REWARD yet
     if (referredBy) {
       const referrer = await User.findOne({ username: referredBy });
       if (referrer) {
-        referrer.balance += 0.01;
-        referrer.referrals.push({ username });
+        referrer.referrals.push({ username: newUser.username });
         await referrer.save();
-
-        const uplines = await getUplineUsers(referredBy, 10);
-        for (let upline of uplines) {
-          upline.balance += 0.01;
-          await upline.save();
-        }
       }
     }
 
-    // Welcome Email
     await sendWelcomeEmail(email, username);
 
-    // Generate token
     const token = jwt.sign(
       { id: newUser._id, username: newUser.username },
       process.env.JWT_SECRET || 'secretKey',
       { expiresIn: '7d' }
     );
 
-    // ✅ Return proper success response
     res.status(201).json({
       success: true,
       message: 'Registered successfully',
@@ -205,6 +194,42 @@ app.post('/register', async (req, res) => {
     res.status(500).json({ success: false, message: 'Server error' });
   }
 });
+app.post('/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    if (!email || !password)
+      return res.status(400).json({ success: false, message: 'Email and password required' });
+
+    const user = await User.findOne({ email });
+    if (!user)
+      return res.status(404).json({ success: false, message: 'User not found' });
+
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch)
+      return res.status(400).json({ success: false, message: 'Invalid password' });
+
+    const token = jwt.sign(
+      { id: user._id, username: user.username },
+      process.env.JWT_SECRET || 'secretKey',
+      { expiresIn: '7d' }
+    );
+
+    res.json({
+      success: true,
+      message: 'Login successful',
+      token,
+      user: {
+        username: user.username,
+        email: user.email
+      }
+    });
+
+  } catch (err) {
+    console.error('Login error:', err);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
 app.get('/profile', authenticate, async (req, res) => {
   const user = await User.findById(req.user.id);
   if (!user) return res.status(404).json({ success: false, message: "User not found" });
