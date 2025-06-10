@@ -263,17 +263,20 @@ app.get('/leaderboard', authenticate, async (req, res) => {
   }
 });
 
-    rewardHistory
+    
+a// GET /rewards/history - fetch user reward history
 app.get('/rewards/history', authenticate, async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
-    if (!user) return res.status(404).json({ message: 'User not found' });
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
 
     res.json({
       rewards: user.rewardHistory || []
     });
-  } catch (err) {
-    console.error(err);
+  } catch (error) {
+    console.error('Error fetching reward history:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });
