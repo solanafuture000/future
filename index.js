@@ -13,12 +13,13 @@ const nodemailer = require('nodemailer');
 
 const app = express();
 
+// Enhanced CORS configuration
 app.use(cors({
-    origin: '*',
+    origin: process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : '*',
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
+    credentials: true
 }));
-app.options('*', cors());
 
 app.use(express.json());
 app.use('/uploads', express.static('uploads'));
@@ -69,16 +70,16 @@ const userSchema = new mongoose.Schema({
         lastClaimed: Date,
     },
     kyc: {
-        status: { type: String, default: 'pending' }, // pending, verified, failed
+        status: { type: String, default: 'pending' },
         imagePath: String,
         submittedAt: Date,
         retryAfter: Date,
-        verificationStartedAt: Date, // to track 5 minutes limit
+        verificationStartedAt: Date,
     },
     mining: {
         lastClaimed: Date,
     },
-    referrals: [{ username: String }], // direct referrals usernames for tracking
+    referrals: [{ username: String }],
 });
 const User = mongoose.model('User', userSchema);
 
@@ -108,7 +109,6 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage });
 
-// Helper: Calculate referral chain (up to 10 levels)
 async function getUplineUsers(username, levels = 10) {
     let uplines = [];
     let currentUser = await User.findOne({ username });
@@ -122,7 +122,7 @@ async function getUplineUsers(username, levels = 10) {
     return uplines;
 }
 
-/ REGISTER
+// REGISTER
 app.post('/register', async (req, res) => {
   try {
     const { username, email, password, referredBy } = req.body;
@@ -204,50 +204,25 @@ app.post('/register', async (req, res) => {
     res.status(500).json({ success: false, message: 'Server error' });
   }
 });
-
-
-// LOGIN
-app.post('/login', async (req, res) => {
-    try {
-        const { email, password } = req.body;
-        if (!email || !password)
-            return res.status(400).json({ message: 'Please provide email and password' });
-
-        const user = await User.findOne({ email });
-        if (!user) return res.status(400).json({ message: 'User not found' });
-
-        const match = await bcrypt.compare(password, user.password);
-        if (!match) return res.status(400).json({ message: 'Incorrect password' });
-
-        const token = jwt.sign({ id: user._id, username: user.username }, process.env.JWT_SECRET || 'secretKey', { expiresIn: '7d' });
-        res.json({ token });
-    } catch (err) {
-        console.error(err);
-        res.status(500).json({ message: 'Server error' });
-    }
-});
-
-// PROFILE
 app.get('/profile', authenticate, async (req, res) => {
-    const user = await User.findById(req.user.id).select('-password -solanaWallet.secretKey');
-    if (!user) return res.status(404).json({ message: 'User not found' });
-    res.json(user);
+  const user = await User.findById(req.user.id);
+  if (!user) return res.status(404).json({ success: false, message: "User not found" });
+
+  res.json({
+    success: true,
+    user: {
+      username: user.username,
+      email: user.email,
+      balance: user.balance,
+      referralReward: user.referralReward || 0,
+      stakingReward: user.stakingReward || 0,
+      solanaWallet: user.solanaWallet,
+      referredBy: user.referredBy,
+      kyc: user.kyc
+    }
+  });
 });
 
-// DEPOSIT
-app.post('/deposit', authenticate, async (req, res) => {
-    const { amount } = req.body;
-    if (typeof amount !== 'number' || amount < 0.3)
-        return res.status(400).json({ message: 'Minimum deposit is 0.3 SOL' });
-
-    const user = await User.findById(req.user.id);
-    if (!user) return res.status(404).json({ message: 'User not found' });
-
-    user.balance += amount;
-    await user.save();
-
-    res.json({ message: `Deposited ${amount} SOL`, newBalance: user.balance });
-});
 
 // WITHDRAW
 app.post('/withdraw', authenticate, async (req, res) => {
@@ -270,7 +245,7 @@ app.post('/withdraw', authenticate, async (req, res) => {
 // STAKE
 app.post('/stake', authenticate, async (req, res) => {
     const { amount } = req.body;
-    if (typeof amount !== 'number' || amount < 1) // minimum 1 SOL staking
+    if (typeof amount !== 'number' || amount < 1)
         return res.status(400).json({ message: 'Minimum stake is 1 SOL' });
 
     const user = await User.findById(req.user.id);
@@ -301,11 +276,10 @@ app.post('/stake/claim', authenticate, async (req, res) => {
     const daysStaked = Math.floor((now - user.staking.lastClaimed) / (1000 * 60 * 60 * 24));
     if (daysStaked < 1) return res.status(400).json({ message: 'You can claim staking rewards once per day' });
 
-    // Check 30 days lock period
     if ((now - user.staking.startTime) < 30 * 24 * 60 * 60 * 1000)
         return res.status(400).json({ message: 'Lock period of 30 days not finished yet' });
 
-    const reward = user.staking.amount * 0.02 * daysStaked; // 2% daily reward
+    const reward = user.staking.amount * 0.02 * daysStaked;
 
     user.balance += reward;
     user.staking.lastClaimed = now;
@@ -314,7 +288,7 @@ app.post('/stake/claim', authenticate, async (req, res) => {
     res.json({ message: `Claimed ${reward.toFixed(4)} SOL staking rewards`, newBalance: user.balance });
 });
 
-// KYC SUBMISSION (upload selfie)
+// KYC SUBMISSION
 app.post('/kyc/submit', authenticate, upload.single('selfie'), async (req, res) => {
     try {
         const user = await User.findById(req.user.id);
@@ -322,13 +296,11 @@ app.post('/kyc/submit', authenticate, upload.single('selfie'), async (req, res) 
 
         if (user.kyc.status === 'verified') return res.status(400).json({ message: 'KYC already verified' });
 
-        // Retry cooldown check
         if (user.kyc.retryAfter && new Date() < user.kyc.retryAfter) {
             const diff = Math.ceil((user.kyc.retryAfter - new Date()) / (1000 * 60 * 60 * 24));
             return res.status(400).json({ message: `Retry KYC after ${diff} days` });
         }
 
-        // Save selfie file path
         user.kyc.imagePath = req.file.path;
         user.kyc.submittedAt = new Date();
         user.kyc.status = 'pending';
@@ -342,7 +314,7 @@ app.post('/kyc/submit', authenticate, upload.single('selfie'), async (req, res) 
     }
 });
 
-// KYC VERIFY (simulate face verification)
+// KYC VERIFY
 app.post('/kyc/verify', authenticate, async (req, res) => {
     const user = await User.findById(req.user.id);
     if (!user) return res.status(404).json({ message: 'User not found' });
@@ -355,14 +327,12 @@ app.post('/kyc/verify', authenticate, async (req, res) => {
     const diffMs = now - user.kyc.verificationStartedAt;
     if (diffMs > 5 * 60 * 1000) {
         user.kyc.status = 'failed';
-        user.kyc.retryAfter = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000); // 3 days cooldown
+        user.kyc.retryAfter = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
         await user.save();
         return res.status(400).json({ message: 'Verification time exceeded 5 minutes. Retry after 3 days.' });
     }
 
-    // TODO: Replace this block with real face verification logic using external API or ML model.
-    // For now simulate success randomly:
-    const isVerified = Math.random() > 0.2; // 80% chance success
+    const isVerified = Math.random() > 0.2;
 
     if (isVerified) {
         user.kyc.status = 'verified';
@@ -371,7 +341,7 @@ app.post('/kyc/verify', authenticate, async (req, res) => {
         return res.json({ message: 'KYC verified successfully!' });
     } else {
         user.kyc.status = 'failed';
-        user.kyc.retryAfter = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000); // 3 days cooldown
+        user.kyc.retryAfter = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
         await user.save();
         return res.status(400).json({ message: 'Verification failed. Retry after 3 days.' });
     }
@@ -385,25 +355,25 @@ app.post('/mine/claim', authenticate, async (req, res) => {
     const now = new Date();
     const lastClaim = user.mining.lastClaimed || new Date(0);
     const diffMs = now - lastClaim;
-    if (diffMs < 3 * 60 * 60 * 1000) { // 3 hours
+    if (diffMs < 3 * 60 * 60 * 1000) {
         return res.status(400).json({ message: 'You can claim mining rewards once every 3 hours' });
     }
 
-    // Base reward amount (example fixed or dynamic based on your rules)
-    let reward = 0.01; // base mining reward
+    let reward = 0.01;
 
-    // Add referral bonus 5% per direct referral verified
     if (user.referrals.length > 0) {
-        const verifiedReferralCount = await User.countDocuments({ username: { $in: user.referrals.map(r => r.username) }, 'kyc.status': 'verified' });
+        const verifiedReferralCount = await User.countDocuments({ 
+            username: { $in: user.referrals.map(r => r.username) }, 
+            'kyc.status': 'verified' 
+        });
         if (verifiedReferralCount > 0) {
             reward += reward * 0.05 * verifiedReferralCount;
         }
     }
 
-    // Add multi-level referral rewards for uplines (5% per level)
     const uplines = await getUplineUsers(user.username, 10);
     for (const upline of uplines) {
-        upline.balance += 0.01; // 10 level referral reward
+        upline.balance += 0.01;
         await upline.save();
     }
 
@@ -414,7 +384,6 @@ app.post('/mine/claim', authenticate, async (req, res) => {
     res.json({ message: `You mined ${reward.toFixed(4)} SOL!`, balance: user.balance });
 });
 
-// Start server
 const PORT = process.env.PORT || 3005;
 app.listen(PORT, () => {
     console.log(`🚀 Server running on port ${PORT}`);
