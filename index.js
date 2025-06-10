@@ -241,6 +241,26 @@ app.post('/withdraw', authenticate, async (req, res) => {
 
     res.json({ message: `Withdrawn ${amount} SOL`, newBalance: user.balance });
 });
+// Leaderboard Route
+app.get('/leaderboard', authenticate, async (req, res) => {
+  try {
+    const topUsers = await User.find({})
+      .sort({ balance: -1 })
+      .limit(10)
+      .select('username balance');
+
+    res.json({
+      success: true,
+      users: topUsers
+    });
+  } catch (err) {
+    console.error("Leaderboard error:", err);
+    res.status(500).json({
+      success: false,
+      message: "Server error fetching leaderboard"
+    });
+  }
+});
 
 // STAKE
 app.post('/stake', authenticate, async (req, res) => {
