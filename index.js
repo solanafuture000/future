@@ -10,6 +10,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const nodemailer = require('nodemailer');
+const User = require('./userSchema');
 
 const app = express();
 
@@ -46,42 +47,11 @@ async function sendWelcomeEmail(toEmail, username) {
         console.error('❌ Email error:', error);
     }
 }
-
 mongoose.connect(process.env.MONGO_URI, {
     dbName: 'soldatabase',
 }).then(() => {
     console.log('✅ MongoDB connected');
 }).catch(err => console.error('❌ MongoDB error:', err));
-
-// User schema with referral levels, staking and mining info
-const userSchema = new mongoose.Schema({
-    username: { type: String, unique: true, required: true },
-    email: { type: String, unique: true, required: true },
-    password: { type: String, required: true },
-    solanaWallet: {
-        publicKey: String,
-        secretKey: String,
-    },
-    referredBy: String,
-    balance: { type: Number, default: 0 },
-    staking: {
-        amount: { type: Number, default: 0 },
-        startTime: Date,
-        lastClaimed: Date,
-    },
-    kyc: {
-        status: { type: String, default: 'pending' },
-        imagePath: String,
-        submittedAt: Date,
-        retryAfter: Date,
-        verificationStartedAt: Date,
-    },
-    mining: {
-        lastClaimed: Date,
-    },
-    referrals: [{ username: String }],
-});
-const User = mongoose.model('User', userSchema);
 
 const authenticate = (req, res, next) => {
     const authHeader = req.headers.authorization;
