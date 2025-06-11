@@ -1,4 +1,3 @@
-
 require('dotenv').config();
 
 const express = require('express');
@@ -81,6 +80,11 @@ const userSchema = new mongoose.Schema({
         lastClaimed: Date,
     },
     referrals: [{ username: String }],
+    rewardHistory: [{
+        date: Date,
+        type: String,
+        amount: Number
+    }]
 });
 const User = mongoose.model('User', userSchema);
 
@@ -122,194 +126,195 @@ async function getUplineUsers(username, levels = 10) {
     }
     return uplines;
 }
+
 // REGISTER
 app.post('/register', async (req, res) => {
-  try {
-    const { username, email, password, referredBy } = req.body;
+    try {
+        const { username, email, password, referredBy } = req.body;
 
-    if (!username || !email || !password)
-      return res.status(400).json({ success: false, message: 'Please provide username, email and password' });
+        if (!username || !email || !password)
+            return res.status(400).json({ success: false, message: 'Please provide username, email and password' });
 
-    const existingEmail = await User.findOne({ email });
-    if (existingEmail)
-      return res.status(400).json({ success: false, message: 'Email already exists' });
+        const existingEmail = await User.findOne({ email });
+        if (existingEmail)
+            return res.status(400).json({ success: false, message: 'Email already exists' });
 
-    const existingUsername = await User.findOne({ username });
-    if (existingUsername)
-      return res.status(400).json({ success: false, message: 'Username already exists' });
+        const existingUsername = await User.findOne({ username });
+        if (existingUsername)
+            return res.status(400).json({ success: false, message: 'Username already exists' });
 
-    const hashed = await bcrypt.hash(password, 10);
-    const wallet = Keypair.generate();
+        const hashed = await bcrypt.hash(password, 10);
+        const wallet = Keypair.generate();
 
-    const newUser = new User({
-      username,
-      email,
-      password: hashed,
-      solanaWallet: {
-        publicKey: wallet.publicKey.toString(),
-        secretKey: Buffer.from(wallet.secretKey).toString('base64'),
-      },
-      referredBy,
-      balance: 0,
-      mining: { lastClaimed: new Date(0) },
-      kyc: { status: 'pending' },
-      referrals: []
-    });
+        const newUser = new User({
+            username,
+            email,
+            password: hashed,
+            solanaWallet: {
+                publicKey: wallet.publicKey.toString(),
+                secretKey: Buffer.from(wallet.secretKey).toString('base64'),
+            },
+            referredBy,
+            balance: 0,
+            mining: { lastClaimed: new Date(0) },
+            kyc: { status: 'pending' },
+            referrals: []
+        });
 
-    await newUser.save();
+        await newUser.save();
 
-    // ✅ ReferredBy Logic (but reward only after KYC + Deposit)
-    if (referredBy) {
-      const referrer = await User.findOne({ username: referredBy });
-      if (referrer) {
-        referrer.referrals.push({ username });
-        await referrer.save();
-      }
+        // ✅ ReferredBy Logic (but reward only after KYC + Deposit)
+        if (referredBy) {
+            const referrer = await User.findOne({ username: referredBy });
+            if (referrer) {
+                referrer.referrals.push({ username });
+                await referrer.save();
+            }
+        }
+
+        // Send welcome email (optional)
+        await sendWelcomeEmail(email, username);
+
+        const token = jwt.sign(
+            { id: newUser._id, username: newUser.username },
+            process.env.JWT_SECRET || 'secretKey',
+            { expiresIn: '7d' }
+        );
+
+        res.status(201).json({
+            success: true,
+            message: 'Registered successfully',
+            token,
+            user: {
+                username: newUser.username,
+                email: newUser.email
+            }
+        });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ success: false, message: 'Server error' });
     }
-
-    // Send welcome email (optional)
-    await sendWelcomeEmail(email, username);
-
-    const token = jwt.sign(
-      { id: newUser._id, username: newUser.username },
-      process.env.JWT_SECRET || 'secretKey',
-      { expiresIn: '7d' }
-    );
-
-    res.status(201).json({
-      success: true,
-      message: 'Registered successfully',
-      token,
-      user: {
-        username: newUser.username,
-        email: newUser.email
-      }
-    });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ success: false, message: 'Server error' });
-  }
 });
 
+// LOGIN
 app.post('/login', async (req, res) => {
-  try {
-    const { email, password } = req.body;
-    if (!email || !password)
-      return res.status(400).json({ success: false, message: 'Email and password required' });
+    try {
+        const { email, password } = req.body;
+        if (!email || !password)
+            return res.status(400).json({ success: false, message: 'Email and password required' });
 
-    const user = await User.findOne({ email });
-    if (!user)
-      return res.status(404).json({ success: false, message: 'User not found' });
+        const user = await User.findOne({ email });
+        if (!user)
+            return res.status(404).json({ success: false, message: 'User not found' });
 
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch)
-      return res.status(400).json({ success: false, message: 'Invalid password' });
+        const isMatch = await bcrypt.compare(password, user.password);
+        if (!isMatch)
+            return res.status(400).json({ success: false, message: 'Invalid password' });
 
-    const token = jwt.sign(
-      { id: user._id, username: user.username },
-      process.env.JWT_SECRET || 'secretKey',
-      { expiresIn: '7d' }
-    );
+        const token = jwt.sign(
+            { id: user._id, username: user.username },
+            process.env.JWT_SECRET || 'secretKey',
+            { expiresIn: '7d' }
+        );
+
+        res.json({
+            success: true,
+            message: 'Login successful',
+            token,
+            user: {
+                username: user.username,
+                email: user.email
+            }
+        });
+
+    } catch (err) {
+        console.error('Login error:', err);
+        res.status(500).json({ success: false, message: 'Server error' });
+    }
+});
+
+// PROFILE
+app.get('/profile', authenticate, async (req, res) => {
+    const user = await User.findById(req.user.id);
+    if (!user) return res.status(404).json({ success: false, message: "User not found" });
 
     res.json({
-      success: true,
-      message: 'Login successful',
-      token,
-      user: {
-        username: user.username,
-        email: user.email
-      }
+        success: true,
+        user: {
+            username: user.username,
+            email: user.email,
+            balance: user.balance,
+            referralReward: user.referralReward || 0,
+            stakingReward: user.stakingReward || 0,
+            solanaWallet: user.solanaWallet,
+            referredBy: user.referredBy,
+            kyc: user.kyc
+        }
     });
-
-  } catch (err) {
-    console.error('Login error:', err);
-    res.status(500).json({ success: false, message: 'Server error' });
-  }
 });
-
-app.get('/profile', authenticate, async (req, res) => {
-  const user = await User.findById(req.user.id);
-  if (!user) return res.status(404).json({ success: false, message: "User not found" });
-
-  res.json({
-    success: true,
-    user: {
-      username: user.username,
-      email: user.email,
-      balance: user.balance,
-      referralReward: user.referralReward || 0,
-      stakingReward: user.stakingReward || 0,
-      solanaWallet: user.solanaWallet,
-      referredBy: user.referredBy,
-      kyc: user.kyc
-    }
-  });
-});
-
 
 // WITHDRAW
 app.post('/withdraw', authenticate, async (req, res) => {
-  try {
-    const { amount } = req.body;
-    const user = await User.findById(req.user.id);
+    try {
+        const { amount } = req.body;
+        const user = await User.findById(req.user.id);
 
-    if (!user) return res.status(404).json({ message: 'User not found' });
+        if (!user) return res.status(404).json({ message: 'User not found' });
 
-    // ✅ KYC must be verified
-    if (user.kyc.status !== 'verified') {
-      return res.status(400).json({ message: 'KYC not verified. Please complete your KYC to withdraw.' });
+        // ✅ KYC must be verified
+        if (user.kyc.status !== 'verified') {
+            return res.status(400).json({ message: 'KYC not verified. Please complete your KYC to withdraw.' });
+        }
+
+        const withdrawAmount = parseFloat(amount);
+        if (isNaN(withdrawAmount) || withdrawAmount < 0.1) {
+            return res.status(400).json({ message: 'Minimum withdrawal amount is 0.1 SOL' });
+        }
+
+        // ✅ Balance check
+        if (user.balance < withdrawAmount) {
+            return res.status(400).json({ message: 'Insufficient balance' });
+        }
+
+        // ✅ Deduct balance
+        user.balance -= withdrawAmount;
+
+        // ✅ Add to reward history
+        user.rewardHistory.push({
+            date: new Date(),
+            type: 'Withdraw',
+            amount: -withdrawAmount
+        });
+
+        await user.save();
+
+        res.json({
+            success: true,
+            message: `Withdrawal of ${withdrawAmount} SOL successful`,
+            balance: user.balance
+        });
+
+    } catch (err) {
+        console.error('Withdraw error:', err);
+        res.status(500).json({ message: 'Withdraw failed. Please try again later.' });
     }
-
-    const withdrawAmount = parseFloat(amount);
-    if (isNaN(withdrawAmount) || withdrawAmount < 0.1) {
-      return res.status(400).json({ message: 'Minimum withdrawal amount is 0.1 SOL' });
-    }
-
-    // ✅ Balance check
-    if (user.balance < withdrawAmount) {
-      return res.status(400).json({ message: 'Insufficient balance' });
-    }
-
-    // ✅ Deduct balance
-    user.balance -= withdrawAmount;
-
-    // ✅ Add to reward history
-    user.rewardHistory.push({
-      date: new Date(),
-      type: 'Withdraw',
-      amount: -withdrawAmount
-    });
-
-    await user.save();
-
-    res.json({
-      success: true,
-      message: `Withdrawal of ${withdrawAmount} SOL successful`,
-      balance: user.balance
-    });
-
-  } catch (err) {
-    console.error('Withdraw error:', err);
-    res.status(500).json({ message: 'Withdraw failed. Please try again later.' });
-  }
 });
 
-    
-// GET /rewards/history - fetch user reward history
+// REWARDS HISTORY
 app.get('/rewards/history', authenticate, async (req, res) => {
-  try {
-    const user = await User.findById(req.user.id);
-    if (!user) {
-      return res.status(404).json({ message: 'User not found' });
-    }
+    try {
+        const user = await User.findById(req.user.id);
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
 
-    res.json({
-      rewards: user.rewardHistory || []
-    });
-  } catch (error) {
-    console.error('Error fetching reward history:', error);
-    res.status(500).json({ message: 'Server error' });
-  }
+        res.json({
+            rewards: user.rewardHistory || []
+        });
+    } catch (error) {
+        console.error('Error fetching reward history:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
 });
 
 // STAKE
@@ -358,7 +363,7 @@ app.post('/stake/claim', authenticate, async (req, res) => {
     res.json({ message: `Claimed ${reward.toFixed(4)} SOL staking rewards`, newBalance: user.balance });
 });
 
-// KYC SUBMISSION - Only if balance >= 0.01 SOL
+// KYC SUBMISSION
 app.post('/kyc/submit', authenticate, upload.single('selfie'), async (req, res) => {
     try {
         const user = await User.findById(req.user.id);
@@ -391,7 +396,7 @@ app.post('/kyc/submit', authenticate, upload.single('selfie'), async (req, res) 
     }
 });
 
-// KYC VERIFICATION - Must verify within 5 minutes
+// KYC VERIFICATION
 app.post('/kyc/verify', authenticate, async (req, res) => {
     try {
         const user = await User.findById(req.user.id);
@@ -435,68 +440,69 @@ app.post('/kyc/verify', authenticate, async (req, res) => {
 
 // MINING REWARD CLAIM
 app.post('/mine/claim', authenticate, async (req, res) => {
-  try {
-    const user = await User.findById(req.user.id);
-    if (!user) return res.status(404).json({ message: 'User not found' });
+    try {
+        const user = await User.findById(req.user.id);
+        if (!user) return res.status(404).json({ message: 'User not found' });
 
-    const now = new Date();
-    const lastClaim = user.mining.lastClaimed || new Date(0);
-    const diffMs = now - lastClaim;
+        const now = new Date();
+        const lastClaim = user.mining.lastClaimed || new Date(0);
+        const diffMs = now - lastClaim;
 
-    if (diffMs < 3 * 60 * 60 * 1000) {
-      return res.status(400).json({ message: 'You can claim mining rewards once every 3 hours' });
+        if (diffMs < 3 * 60 * 60 * 1000) {
+            return res.status(400).json({ message: 'You can claim mining rewards once every 3 hours' });
+        }
+
+        let reward = 0.00025;
+
+        // ✅ Count only verified + deposited referrals
+        const verifiedReferrals = await User.find({
+            username: { $in: user.referrals.map(r => r.username) },
+            'kyc.status': 'verified',
+            balance: { $gte: 0.01 }
+        });
+
+        if (verifiedReferrals.length > 0) {
+            reward += reward * 0.05 * verifiedReferrals.length;
+        }
+
+        // ✅ Upline reward
+        const uplines = await getUplineUsers(user.username, 10);
+        for (const upline of uplines) {
+            upline.balance += 0.00025;
+
+            // 🔥 OPTIONAL: log uplines reward
+            upline.rewardHistory.push({
+                date: now,
+                type: 'Upline Bonus',
+                amount: 0.00025
+            });
+
+            await upline.save();
+        }
+
+        user.balance += reward;
+        user.mining.lastClaimed = now;
+
+        // ✅ Add to reward history
+        user.rewardHistory.push({
+            date: now,
+            type: 'Mining',
+            amount: reward
+        });
+
+        await user.save();
+
+        res.json({
+            success: true,
+            message: `You mined ${reward.toFixed(5)} SOL!`,
+            balance: user.balance
+        });
+    } catch (err) {
+        console.error(err);
+        res.status(500).json({ message: 'Error during claim' });
     }
-
-    let reward = 0.00025;
-
-    // ✅ Count only verified + deposited referrals
-    const verifiedReferrals = await User.find({
-      username: { $in: user.referrals.map(r => r.username) },
-      'kyc.status': 'verified',
-      balance: { $gte: 0.01 }
-    });
-
-    if (verifiedReferrals.length > 0) {
-      reward += reward * 0.05 * verifiedReferrals.length;
-    }
-
-    // ✅ Upline reward
-    const uplines = await getUplineUsers(user.username, 10);
-    for (const upline of uplines) {
-      upline.balance += 0.00025;
-
-      // 🔥 OPTIONAL: log uplines reward
-      upline.rewardHistory.push({
-        date: now,
-        type: 'Upline Bonus',
-        amount: 0.00025
-      });
-
-      await upline.save();
-    }
-
-    user.balance += reward;
-    user.mining.lastClaimed = now;
-
-    // ✅ Add to reward history
-    user.rewardHistory.push({
-      date: now,
-      type: 'Mining',
-      amount: reward
-    });
-
-    await user.save();
-
-    res.json({
-      success: true,
-      message: `You mined ${reward.toFixed(5)} SOL!`,
-      balance: user.balance
-    });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Error during claim' });
-  }
 });
+
 const PORT = process.env.PORT || 3005;
 app.listen(PORT, () => {
     console.log(`🚀 Server running on port ${PORT}`);
