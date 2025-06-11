@@ -249,39 +249,48 @@ app.get('/profile', authenticate, async (req, res) => {
 
 // WITHDRAW
 app.post('/withdraw', authenticate, async (req, res) => {
+  try {
     const { amount } = req.body;
-    if (typeof amount !== 'number' || amount < 0.3)
-        return res.status(400).json({ message: 'Minimum withdrawal is 0.3 SOL' });
-
     const user = await User.findById(req.user.id);
+
     if (!user) return res.status(404).json({ message: 'User not found' });
 
-    if (user.balance < amount)
-        return res.status(400).json({ message: 'Insufficient balance' });
+    // ✅ KYC must be verified
+    if (user.kyc.status !== 'verified') {
+      return res.status(400).json({ message: 'KYC not verified. Please complete your KYC to withdraw.' });
+    }
 
-    user.balance -= amount;
+    const withdrawAmount = parseFloat(amount);
+    if (isNaN(withdrawAmount) || withdrawAmount < 0.1) {
+      return res.status(400).json({ message: 'Minimum withdrawal amount is 0.1 SOL' });
+    }
+
+    // ✅ Balance check
+    if (user.balance < withdrawAmount) {
+      return res.status(400).json({ message: 'Insufficient balance' });
+    }
+
+    // ✅ Deduct balance
+    user.balance -= withdrawAmount;
+
+    // ✅ Add to reward history
+    user.rewardHistory.push({
+      date: new Date(),
+      type: 'Withdraw',
+      amount: -withdrawAmount
+    });
+
     await user.save();
-
-    res.json({ message: `Withdrawn ${amount} SOL`, newBalance: user.balance });
-});
-// Leaderboard Route
-app.get('/leaderboard', authenticate, async (req, res) => {
-  try {
-    const topUsers = await User.find({})
-      .sort({ balance: -1 })
-      .limit(10)
-      .select('username balance');
 
     res.json({
       success: true,
-      users: topUsers
+      message: `Withdrawal of ${withdrawAmount} SOL successful`,
+      balance: user.balance
     });
+
   } catch (err) {
-    console.error("Leaderboard error:", err);
-    res.status(500).json({
-      success: false,
-      message: "Server error fetching leaderboard"
-    });
+    console.error('Withdraw error:', err);
+    res.status(500).json({ message: 'Withdraw failed. Please try again later.' });
   }
 });
 
