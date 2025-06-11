@@ -437,9 +437,6 @@ app.post('/kyc/verify', authenticate, async (req, res) => {
         res.status(500).json({ message: 'KYC verification error' });
     }
 });
-fetch('/leaderboard', {
-  headers: { 'Authorization': `Bearer ${token}` }
-})
 // MINING REWARD CLAIM
 app.post('/mine/claim', authenticate, async (req, res) => {
     try {
