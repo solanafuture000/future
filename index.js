@@ -451,15 +451,31 @@ app.post('/mine/claim', authenticate, async (req, res) => {
       reward += reward * 0.05 * verifiedReferrals.length;
     }
 
-    // ✅ Upline logic (if needed)
+    // ✅ Upline reward
     const uplines = await getUplineUsers(user.username, 10);
     for (const upline of uplines) {
       upline.balance += 0.00025;
+
+      // 🔥 OPTIONAL: log uplines reward
+      upline.rewardHistory.push({
+        date: now,
+        type: 'Upline Bonus',
+        amount: 0.00025
+      });
+
       await upline.save();
     }
 
     user.balance += reward;
     user.mining.lastClaimed = now;
+
+    // ✅ Add to reward history
+    user.rewardHistory.push({
+      date: now,
+      type: 'Mining',
+      amount: reward
+    });
+
     await user.save();
 
     res.json({
