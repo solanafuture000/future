@@ -149,28 +149,25 @@ app.post('/register', async (req, res) => {
         publicKey: wallet.publicKey.toString(),
         secretKey: Buffer.from(wallet.secretKey).toString('base64'),
       },
-      referredBy, // just store it for later
+      referredBy,
       balance: 0,
-      mining: {
-        lastClaimed: new Date(0),
-      },
-      kyc: {
-        status: 'pending',
-      },
-      referrals: [],
+      mining: { lastClaimed: new Date(0) },
+      kyc: { status: 'pending' },
+      referrals: []
     });
 
     await newUser.save();
 
-    // Only save referral reference — DO NOT REWARD yet
+    // ✅ ReferredBy Logic (but reward only after KYC + Deposit)
     if (referredBy) {
       const referrer = await User.findOne({ username: referredBy });
       if (referrer) {
-        referrer.referrals.push({ username: newUser.username });
+        referrer.referrals.push({ username });
         await referrer.save();
       }
     }
 
+    // Send welcome email (optional)
     await sendWelcomeEmail(email, username);
 
     const token = jwt.sign(
@@ -188,12 +185,12 @@ app.post('/register', async (req, res) => {
         email: newUser.email
       }
     });
-
   } catch (err) {
     console.error(err);
     res.status(500).json({ success: false, message: 'Server error' });
   }
 });
+
 app.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -429,41 +426,52 @@ app.post('/kyc/verify', authenticate, async (req, res) => {
 
 // MINING REWARD CLAIM
 app.post('/mine/claim', authenticate, async (req, res) => {
+  try {
     const user = await User.findById(req.user.id);
     if (!user) return res.status(404).json({ message: 'User not found' });
 
     const now = new Date();
     const lastClaim = user.mining.lastClaimed || new Date(0);
     const diffMs = now - lastClaim;
+
     if (diffMs < 3 * 60 * 60 * 1000) {
-        return res.status(400).json({ message: 'You can claim mining rewards once every 3 hours' });
+      return res.status(400).json({ message: 'You can claim mining rewards once every 3 hours' });
     }
 
-    let reward = 0.01;
+    let reward = 0.00025;
 
-    if (user.referrals.length > 0) {
-        const verifiedReferralCount = await User.countDocuments({ 
-            username: { $in: user.referrals.map(r => r.username) }, 
-            'kyc.status': 'verified' 
-        });
-        if (verifiedReferralCount > 0) {
-            reward += reward * 0.05 * verifiedReferralCount;
-        }
+    // ✅ Count only verified + deposited referrals
+    const verifiedReferrals = await User.find({
+      username: { $in: user.referrals.map(r => r.username) },
+      'kyc.status': 'verified',
+      balance: { $gte: 0.01 }
+    });
+
+    if (verifiedReferrals.length > 0) {
+      reward += reward * 0.05 * verifiedReferrals.length;
     }
 
+    // ✅ Upline logic (if needed)
     const uplines = await getUplineUsers(user.username, 10);
     for (const upline of uplines) {
-        upline.balance += 0.01;
-        await upline.save();
+      upline.balance += 0.00025;
+      await upline.save();
     }
 
     user.balance += reward;
     user.mining.lastClaimed = now;
     await user.save();
 
-    res.json({ message: `You mined ${reward.toFixed(4)} SOL!`, balance: user.balance });
+    res.json({
+      success: true,
+      message: `You mined ${reward.toFixed(5)} SOL!`,
+      balance: user.balance
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Error during claim' });
+  }
 });
-
 const PORT = process.env.PORT || 3005;
 app.listen(PORT, () => {
     console.log(`🚀 Server running on port ${PORT}`);
