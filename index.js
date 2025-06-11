@@ -432,7 +432,7 @@ app.post('/kyc/verify', authenticate, async (req, res) => {
     }
 });
 
-// MINING REWARD CLAIM
+// MINING REWARD CLAIM (FINAL LOGIC)
 app.post('/mine/claim', authenticate, async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
@@ -440,15 +440,22 @@ app.post('/mine/claim', authenticate, async (req, res) => {
 
     const now = new Date();
     const lastClaim = user.mining.lastClaimed || new Date(0);
+
+    const maxMiningDurationMs = 3 * 60 * 60 * 1000; // 3 گھنٹے
     const diffMs = now - lastClaim;
 
-    if (diffMs < 3 * 60 * 60 * 1000) {
-      return res.status(400).json({ message: 'You can claim mining rewards once every 3 hours' });
+    // جتنا وقت گزرا ہے، اور زیادہ سے زیادہ 3 گھنٹے سے زیادہ نہ ہو
+    const eligibleMs = Math.min(diffMs, maxMiningDurationMs);
+
+    if (eligibleMs <= 0) {
+      return res.status(400).json({ message: 'No mining reward available yet.' });
     }
 
-    let reward = 0.00025;
+    // پر سیکنڈ ریوارڈ (پورے 3 گھنٹے = 0.00025)
+    const rewardPerMs = 0.00025 / maxMiningDurationMs;
+    let reward = rewardPerMs * eligibleMs;
 
-    // ✅ Count only verified + deposited referrals
+    // ✅ Count verified + deposited referrals
     const verifiedReferrals = await User.find({
       username: { $in: user.referrals.map(r => r.username) },
       'kyc.status': 'verified',
@@ -464,7 +471,6 @@ app.post('/mine/claim', authenticate, async (req, res) => {
     for (const upline of uplines) {
       upline.balance += 0.00025;
 
-      // 🔥 OPTIONAL: log uplines reward
       upline.rewardHistory.push({
         date: now,
         type: 'Upline Bonus',
@@ -477,7 +483,7 @@ app.post('/mine/claim', authenticate, async (req, res) => {
     user.balance += reward;
     user.mining.lastClaimed = now;
 
-    // ✅ Add to reward history
+    // ✅ Reward History
     user.rewardHistory.push({
       date: now,
       type: 'Mining',
@@ -488,7 +494,8 @@ app.post('/mine/claim', authenticate, async (req, res) => {
 
     res.json({
       success: true,
-      message: `You mined ${reward.toFixed(5)} SOL!`,
+      message: `You mined ${reward.toFixed(6)} SOL!`,
+      earned: reward.toFixed(6),
       balance: user.balance
     });
   } catch (err) {
