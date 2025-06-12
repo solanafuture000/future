@@ -38,14 +38,21 @@ const userSchema = new mongoose.Schema({
     lastClaimed: { type: Date, default: new Date(0) }
   },
 
-  // ✅ Reward history
+  // ✅ Reward history (for mining, staking, deposit)
   rewardHistory: [
     {
       date: { type: Date, default: Date.now },
-      type: { type: String, required: true },
+      type: { type: String, required: true },   // e.g., 'Mining', 'Deposit'
       amount: { type: Number, required: true }
     }
-  ]
+  ],
+
+  // ✅ Staking
+  stakingAmount: { type: Number, default: 0 },
+  stakingRewards: { type: Number, default: 0 },
+
+  // ✅ Account creation time
+  createdAt: { type: Date, default: Date.now }
 });
 
 const User = mongoose.model('User', userSchema);
