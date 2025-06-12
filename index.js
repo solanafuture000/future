@@ -159,7 +159,7 @@ app.post('/register', async (req, res) => {
     res.status(500).json({ success: false, message: 'Server error' });
   }
 });
-// ✅ Leaderboard Route
+// ✅ Leaderboard Route (Fixed)
 app.get('/leaderboard', async (req, res) => {
   try {
     const topUsers = await User.find({})
@@ -167,13 +167,14 @@ app.get('/leaderboard', async (req, res) => {
       .limit(10)
       .select('username balance -_id');
 
-   res.json({ success: true, users: topUsers });
-
+    // 🔁 Note: Changed `leaderboard` to `users`
+    res.json({ success: true, users: topUsers });
   } catch (err) {
     console.error('Leaderboard error:', err);
     res.status(500).json({ success: false, message: 'Server error loading leaderboard' });
   }
 });
+
 
 app.post('/login', async (req, res) => {
   try {
