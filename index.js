@@ -11,6 +11,7 @@ const path = require('path');
 const fs = require('fs');
 const nodemailer = require('nodemailer');
 const User = require('./userSchema');
+const kycRoutes = require('./routes/kyc');
 
 const app = express();
 
@@ -343,81 +344,6 @@ app.post('/stake/claim', authenticate, async (req, res) => {
     res.json({ message: `Claimed ${reward.toFixed(4)} SOL staking rewards`, newBalance: user.balance });
 });
 
-// KYC SUBMISSION - Only if balance >= 0.01 SOL
-app.post('/kyc/submit', authenticate, upload.single('selfie'), async (req, res) => {
-    try {
-        const user = await User.findById(req.user.id);
-        if (!user) return res.status(404).json({ message: 'User not found' });
-
-        if (user.kyc.status === 'verified')
-            return res.status(400).json({ message: 'KYC already verified' });
-
-        if (user.balance < 0.01)
-            return res.status(400).json({ message: 'You must deposit at least 0.01 SOL to apply for KYC' });
-
-        if (user.kyc.retryAfter && new Date() < user.kyc.retryAfter) {
-            const daysLeft = Math.ceil((user.kyc.retryAfter - new Date()) / (1000 * 60 * 60 * 24));
-            return res.status(400).json({ message: `Retry KYC after ${daysLeft} day(s)` });
-        }
-
-        if (!req.file)
-            return res.status(400).json({ message: 'Selfie image is required' });
-
-        user.kyc.imagePath = req.file.path;
-        user.kyc.submittedAt = new Date();
-        user.kyc.status = 'pending';
-        user.kyc.verificationStartedAt = new Date();
-        await user.save();
-
-        res.json({ message: 'KYC selfie submitted. Verification started. You have 5 minutes to complete.' });
-    } catch (err) {
-        console.error('KYC submit error:', err);
-        res.status(500).json({ message: 'KYC submission error' });
-    }
-});
-
-// KYC VERIFICATION - Must verify within 5 minutes
-app.post('/kyc/verify', authenticate, async (req, res) => {
-    try {
-        const user = await User.findById(req.user.id);
-        if (!user) return res.status(404).json({ message: 'User not found' });
-
-        if (user.kyc.status === 'verified')
-            return res.status(400).json({ message: 'KYC already verified' });
-
-        if (!user.kyc.verificationStartedAt)
-            return res.status(400).json({ message: 'No selfie found. Please submit KYC first' });
-
-        const now = new Date();
-        const timeDiff = now - new Date(user.kyc.verificationStartedAt);
-        if (timeDiff > 5 * 60 * 1000) {
-            user.kyc.status = 'failed';
-            user.kyc.retryAfter = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
-            await user.save();
-            return res.status(400).json({ message: 'KYC time expired (5 mins). Retry after 3 days' });
-        }
-
-        // Simulate AI/face match
-        const isVerified = Math.random() > 0.2;
-
-        if (isVerified) {
-            user.kyc.status = 'verified';
-            user.kyc.verificationStartedAt = null;
-            await user.save();
-            return res.json({ message: 'KYC verified successfully' });
-        } else {
-            user.kyc.status = 'failed';
-            user.kyc.retryAfter = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
-            await user.save();
-            return res.status(400).json({ message: 'Verification failed. Retry after 3 days' });
-        }
-
-    } catch (err) {
-        console.error('KYC verify error:', err);
-        res.status(500).json({ message: 'KYC verification error' });
-    }
-});
-
 // MINING REWARD CLAIM (FINAL LOGIC)
 app.post('/mine/claim', authenticate, async (req, res) => {
   try {
@@ -489,6 +415,8 @@ app.post('/mine/claim', authenticate, async (req, res) => {
     res.status(500).json({ message: 'Error during claim' });
   }
 });
+app.use('/kyc', kycRoutes);
+
 const PORT = process.env.PORT || 3005;
 app.listen(PORT, () => {
     console.log(`🚀 Server running on port ${PORT}`);
