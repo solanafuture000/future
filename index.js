@@ -11,7 +11,9 @@ const path = require('path');
 const fs = require('fs');
 const nodemailer = require('nodemailer');
 const User = require('./userSchema');
-const kycRoutes = require('./routes/kyc');
+const { verifyKYC } = require('./controllers/kycController');
+
+
 
 const app = express();
 
@@ -424,7 +426,7 @@ app.post('/mine/claim', authenticate, async (req, res) => {
     res.status(500).json({ message: 'Error during claim' });
   }
 });
-app.use('/kyc', kycRoutes);
+app.post("/kyc/submit", authenticate, upload.single("selfie"), verifyKYC);
 
 const PORT = process.env.PORT || 3005;
 app.listen(PORT, () => {
