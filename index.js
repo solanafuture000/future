@@ -167,7 +167,8 @@ app.get('/leaderboard', async (req, res) => {
       .limit(10)
       .select('username balance -_id');
 
-    res.json({ success: true, leaderboard: topUsers });
+   res.json({ success: true, users: topUsers });
+
   } catch (err) {
     console.error('Leaderboard error:', err);
     res.status(500).json({ success: false, message: 'Server error loading leaderboard' });
