@@ -227,7 +227,16 @@ app.get('/profile', authenticate, async (req, res) => {
       stakingReward: user.stakingReward || 0,
       solanaWallet: user.solanaWallet,
       referredBy: user.referredBy,
-      kyc: user.kyc
+
+      // ✅ Ensure KYC object is never missing
+      kyc: {
+        status: user.kyc?.status || "not_started",
+        imagePath: user.kyc?.imagePath || null,
+        submittedAt: user.kyc?.submittedAt || null,
+        verifiedAt: user.kyc?.verifiedAt || null,
+        verificationStartedAt: user.kyc?.verificationStartedAt || null,
+        retryAfter: user.kyc?.retryAfter || null
+      }
     }
   });
 });
