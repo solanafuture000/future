@@ -4,8 +4,8 @@ const path = require('path');
 const User = require('../models/User');
 
 // ✅ Face++ credentials
-const FACEPP_API_KEY = 'YOUR_FACEPP_API_KEY';
-const FACEPP_API_SECRET = 'YOUR_FACEPP_API_SECRET';
+const FACEPP_API_KEY = '20Wza9102OVnDvgl2ptAsij0UuGEAMQV';
+const FACEPP_API_SECRET = 'KjTuojESnEWbYgrdLca5ahR0AKqkX1Vf';
 
 const verifyKYC = async (req, res) => {
   try {
