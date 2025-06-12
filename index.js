@@ -159,6 +159,20 @@ app.post('/register', async (req, res) => {
     res.status(500).json({ success: false, message: 'Server error' });
   }
 });
+// ✅ Leaderboard Route
+app.get('/leaderboard', async (req, res) => {
+  try {
+    const topUsers = await User.find({})
+      .sort({ balance: -1 })
+      .limit(10)
+      .select('username balance -_id');
+
+    res.json({ success: true, leaderboard: topUsers });
+  } catch (err) {
+    console.error('Leaderboard error:', err);
+    res.status(500).json({ success: false, message: 'Server error loading leaderboard' });
+  }
+});
 
 app.post('/login', async (req, res) => {
   try {
