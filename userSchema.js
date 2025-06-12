@@ -37,14 +37,14 @@ const userSchema = new mongoose.Schema({
     lastClaimed: { type: Date, default: new Date(0) }
   },
 
-  // ✅ Reward history log
-  rewardHistory: [
-    {
-      date: { type: Date, default: Date.now },
-      type: String, // "Mining", "Referral", "Staking", "Deposit", "Withdraw"
-      amount: Number
-    }
-  ]
+ rewardHistory: [
+  {
+    date: { type: Date, default: Date.now },
+    type: { type: String, required: true },
+    amount: { type: Number, required: true }
+  }
+]
+
 });
 
 const User = mongoose.model('User', userSchema);
