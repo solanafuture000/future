@@ -47,6 +47,14 @@ rewardHistory: [
 
 
 });
+kyc: {
+  imagePath: String,
+  status: { type: String, default: "not_started" },
+  retryAfter: Date,
+  submittedAt: Date,
+  verifiedAt: Date,
+  verificationStartedAt: Date
+}
 
 const User = mongoose.model('User', userSchema);
 
