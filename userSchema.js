@@ -25,11 +25,12 @@ const userSchema = new mongoose.Schema({
 
   // ✅ KYC Info
   kyc: {
-    status: { type: String, default: 'pending' }, // pending, verified, failed
+    imagePath: String,
+    status: { type: String, default: "not_started" }, // not_started, pending, verified, failed
     submittedAt: Date,
+    verifiedAt: Date,
     verificationStartedAt: Date,
-    retryAfter: Date,
-    imagePath: String
+    retryAfter: Date
   },
 
   // ✅ Mining Info
@@ -37,24 +38,15 @@ const userSchema = new mongoose.Schema({
     lastClaimed: { type: Date, default: new Date(0) }
   },
 
-rewardHistory: [
-  {
-    date: { type: Date, default: Date.now },
-    type: { type: String, required: true },
-    amount: { type: Number, required: true }
-  }
-]
-
-
+  // ✅ Reward history
+  rewardHistory: [
+    {
+      date: { type: Date, default: Date.now },
+      type: { type: String, required: true },
+      amount: { type: Number, required: true }
+    }
+  ]
 });
-kyc: {
-  imagePath: String,
-  status: { type: String, default: "not_started" },
-  retryAfter: Date,
-  submittedAt: Date,
-  verifiedAt: Date,
-  verificationStartedAt: Date
-}
 
 const User = mongoose.model('User', userSchema);
 
