@@ -164,7 +164,7 @@ app.get('/leaderboard', async (req, res) => {
   try {
     const topUsers = await User.find({})
       .sort({ balance: -1 })
-      .limit(10)
+      .limit(100)
       .select('username balance -_id');
 
     // 🔁 Note: Changed `leaderboard` to `users`
