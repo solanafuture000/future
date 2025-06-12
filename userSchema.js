@@ -37,13 +37,14 @@ const userSchema = new mongoose.Schema({
     lastClaimed: { type: Date, default: new Date(0) }
   },
 
- rewardHistory: [
+rewardHistory: [
   {
     date: { type: Date, default: Date.now },
     type: { type: String, required: true },
     amount: { type: Number, required: true }
   }
 ]
+
 
 });
 
