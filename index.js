@@ -10,9 +10,9 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const nodemailer = require('nodemailer');
-const User = require('./userSchema');
 const kycController = require('./kycController');
 const WithdrawRequest = require('./models/withdrawRequest');
+const User = require('./models/user');
 
 
 const app = express();
