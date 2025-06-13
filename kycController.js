@@ -2,10 +2,9 @@ const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
 const FormData = require('form-data');
-
+const User = require('../models/User');
 
 // ✅ Face++ credentials
-// Replace in your code
 const FACEPP_API_KEY = process.env.FACEPP_API_KEY;
 const FACEPP_API_SECRET = process.env.FACEPP_API_SECRET;
 
@@ -21,10 +20,6 @@ const submitKYC = async (req, res) => {
 
     if (user.balance < 0.01) {
       return res.status(400).json({ message: 'Minimum 0.01 SOL deposit required to apply for KYC' });
-    }
-
-    if (user.kyc.retryAfter && new Date() < user.kyc.retryAfter) {
-      return res.status(400).json({ message: 'KYC retry not allowed yet. Please wait.' });
     }
 
     if (!req.file) {
@@ -62,15 +57,13 @@ const verifyKYC = async (req, res) => {
     const diff = now - new Date(user.kyc.verificationStartedAt);
     if (diff > 5 * 60 * 1000) {
       user.kyc.status = 'failed';
-      user.kyc.retryAfter = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
-      await user.save();
       fs.unlinkSync(user.kyc.imagePath);
       user.kyc.imagePath = undefined;
       await user.save();
 
       return res.status(400).json({
         success: false,
-        message: '⏱️ KYC expired. Try again after 3 days.'
+        message: '⏱️ KYC expired. Please try again.'
       });
     }
 
@@ -95,17 +88,18 @@ const verifyKYC = async (req, res) => {
       user.kyc.status = 'verified';
       user.kyc.verifiedAt = now;
       user.kyc.verificationStartedAt = null;
-      await user.save();
-
-      return res.json({ success: true, message: '✅ KYC Verified Successfully' });
     } else {
       user.kyc.status = 'failed';
-      user.kyc.retryAfter = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000);
-      await user.save();
+    }
 
+    await user.save();
+
+    if (user.kyc.status === 'verified') {
+      return res.json({ success: true, message: '✅ KYC Verified Successfully' });
+    } else {
       return res.status(400).json({
         success: false,
-        message: '❌ Face not detected. Try again in better lighting after 3 days.'
+        message: '❌ Face not detected. Try again in better lighting.'
       });
     }
   } catch (error) {
