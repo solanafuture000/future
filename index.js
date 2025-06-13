@@ -243,7 +243,7 @@ app.get('/profile', authenticate, async (req, res) => {
   });
 });
 
-// ✅ WITHDRAW
+// WITHDRAW
 app.post('/withdraw', authenticate, async (req, res) => {
   try {
     const { amount, address } = req.body;
@@ -262,110 +262,111 @@ app.post('/withdraw', authenticate, async (req, res) => {
     if (user.balance < withdrawAmount)
       return res.status(400).json({ message: 'Insufficient balance' });
 
-    // 💰 Deduct balance
+    // ✅ Balance deduct & save
     user.balance -= withdrawAmount;
-
-    // ✏️ Add to reward history as PENDING
-    user.rewardHistory.push({
-      date: new Date(),
-      type: 'Withdraw',
-      amount: withdrawAmount,
-      status: 'pending'
-    });
-
     await user.save();
 
-    // 📦 Create withdraw request
     const request = new WithdrawRequest({
       userId: user._id,
-      walletAddress: address,
+      walletAddress: address, // ✅ custom address
       amount: withdrawAmount,
       status: 'pending'
     });
     await request.save();
 
+    // ✅ Add to rewardHistory
+    user.rewardHistory.push({
+      date: new Date(),
+      type: 'Withdraw',
+      amount: withdrawAmount
+    });
+    await user.save();
+
     res.json({ success: true, message: 'Withdrawal request submitted. Awaiting admin approval.' });
+
   } catch (err) {
     console.error('Withdraw error:', err);
     res.status(500).json({ message: 'Withdraw failed. Try again later.' });
   }
 });
+    
+// ✅ GET /transactions/history
+app.get('/transactions/history', authenticate, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
 
-// ✅ Withdraw History
+    res.json({
+      success: true,
+      rewards: user.rewardHistory || []
+    });
+  } catch (error) {
+    console.error('Error fetching reward history:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+// GET /withdraw/history
 app.get('/withdraw/history', authenticate, async (req, res) => {
   try {
-    const requests = await WithdrawRequest.find({ userId: req.user.id }).sort({ requestedAt: -1 });
+    const requests = await WithdrawRequest.find({ userId: req.user.id })
+      .sort({ requestedAt: -1 });
+
     res.json({ success: true, history: requests });
   } catch (err) {
-    res.status(500).json({ success: false, message: 'Server error loading withdraw history' });
+    console.error('Withdraw history error:', err);
+    res.status(500).json({ success: false, message: 'Server error' });
   }
 });
 
-// ✅ STAKING
+// STAKE
 app.post('/stake', authenticate, async (req, res) => {
-  const { amount } = req.body;
-  if (typeof amount !== 'number' || amount < 1)
-    return res.status(400).json({ message: 'Minimum stake is 1 SOL' });
+    const { amount } = req.body;
+    if (typeof amount !== 'number' || amount < 1)
+        return res.status(400).json({ message: 'Minimum stake is 1 SOL' });
 
-  const user = await User.findById(req.user.id);
-  if (!user) return res.status(404).json({ message: 'User not found' });
+    const user = await User.findById(req.user.id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
 
-  if (user.balance < amount)
-    return res.status(400).json({ message: 'Insufficient balance to stake' });
+    if (user.balance < amount)
+        return res.status(400).json({ message: 'Insufficient balance to stake' });
 
-  if (user.staking.amount > 0)
-    return res.status(400).json({ message: 'You already have active staking' });
+    if (user.staking.amount > 0)
+        return res.status(400).json({ message: 'You already have active staking' });
 
-  user.balance -= amount;
-  user.staking.amount = amount;
-  user.staking.startTime = new Date();
-  user.staking.lastClaimed = new Date();
+    user.balance -= amount;
+    user.staking.amount = amount;
+    user.staking.startTime = new Date();
+    user.staking.lastClaimed = new Date();
+    await user.save();
 
-  // ✅ Reward History Entry
-  user.rewardHistory.push({
-    date: new Date(),
-    type: 'Stake',
-    amount,
-    status: 'success'
-  });
-
-  await user.save();
-
-  res.json({ message: `Staked ${amount} SOL for 30 days`, staking: user.staking });
+    res.json({ message: `Staked ${amount} SOL for 30 days`, staking: user.staking });
 });
 
-// ✅ CLAIM STAKING
+// CLAIM STAKING REWARDS
 app.post('/stake/claim', authenticate, async (req, res) => {
-  const user = await User.findById(req.user.id);
-  if (!user) return res.status(404).json({ message: 'User not found' });
-  if (user.staking.amount === 0) return res.status(400).json({ message: 'No active staking' });
+    const user = await User.findById(req.user.id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    if (user.staking.amount === 0) return res.status(400).json({ message: 'No active staking' });
 
-  const now = new Date();
-  const daysStaked = Math.floor((now - user.staking.lastClaimed) / (1000 * 60 * 60 * 24));
-  if (daysStaked < 1) return res.status(400).json({ message: 'You can claim staking rewards once per day' });
+    const now = new Date();
+    const daysStaked = Math.floor((now - user.staking.lastClaimed) / (1000 * 60 * 60 * 24));
+    if (daysStaked < 1) return res.status(400).json({ message: 'You can claim staking rewards once per day' });
 
-  if ((now - user.staking.startTime) < 30 * 24 * 60 * 60 * 1000)
-    return res.status(400).json({ message: 'Lock period of 30 days not finished yet' });
+    if ((now - user.staking.startTime) < 30 * 24 * 60 * 60 * 1000)
+        return res.status(400).json({ message: 'Lock period of 30 days not finished yet' });
 
-  const reward = user.staking.amount * 0.02 * daysStaked;
+    const reward = user.staking.amount * 0.02 * daysStaked;
 
-  user.balance += reward;
-  user.staking.lastClaimed = now;
+    user.balance += reward;
+    user.staking.lastClaimed = now;
+    await user.save();
 
-  // ✅ Reward History
-  user.rewardHistory.push({
-    date: now,
-    type: 'Staking',
-    amount: reward,
-    status: 'success'
-  });
-
-  await user.save();
-
-  res.json({ message: `Claimed ${reward.toFixed(4)} SOL staking rewards`, newBalance: user.balance });
+    res.json({ message: `Claimed ${reward.toFixed(4)} SOL staking rewards`, newBalance: user.balance });
 });
 
-// ✅ MINING CLAIM
+// MINING REWARD CLAIM (FINAL LOGIC)
 app.post('/mine/claim', authenticate, async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
@@ -373,17 +374,22 @@ app.post('/mine/claim', authenticate, async (req, res) => {
 
     const now = new Date();
     const lastClaim = user.mining.lastClaimed || new Date(0);
-    const maxMiningDurationMs = 3 * 60 * 60 * 1000;
+
+    const maxMiningDurationMs = 3 * 60 * 60 * 1000; // 3 گھنٹے
     const diffMs = now - lastClaim;
+
+    // جتنا وقت گزرا ہے، اور زیادہ سے زیادہ 3 گھنٹے سے زیادہ نہ ہو
     const eligibleMs = Math.min(diffMs, maxMiningDurationMs);
 
     if (eligibleMs <= 0) {
       return res.status(400).json({ message: 'No mining reward available yet.' });
     }
 
+    // پر سیکنڈ ریوارڈ (پورے 3 گھنٹے = 0.00025)
     const rewardPerMs = 0.00025 / maxMiningDurationMs;
     let reward = rewardPerMs * eligibleMs;
 
+    // ✅ Count verified + deposited referrals
     const verifiedReferrals = await User.find({
       username: { $in: user.referrals.map(r => r.username) },
       'kyc.status': 'verified',
@@ -394,26 +400,28 @@ app.post('/mine/claim', authenticate, async (req, res) => {
       reward += reward * 0.05 * verifiedReferrals.length;
     }
 
+    // ✅ Upline reward
     const uplines = await getUplineUsers(user.username, 10);
     for (const upline of uplines) {
       upline.balance += 0.00025;
+
       upline.rewardHistory.push({
         date: now,
         type: 'Upline Bonus',
-        amount: 0.00025,
-        status: 'success'
+        amount: 0.00025
       });
+
       await upline.save();
     }
 
     user.balance += reward;
     user.mining.lastClaimed = now;
 
+    // ✅ Reward History
     user.rewardHistory.push({
       date: now,
       type: 'Mining',
-      amount: reward,
-      status: 'success'
+      amount: reward
     });
 
     await user.save();
