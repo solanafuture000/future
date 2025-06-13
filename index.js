@@ -292,23 +292,6 @@ app.post('/withdraw', authenticate, async (req, res) => {
   }
 });
     
-// ✅ GET /transactions/history
-app.get('/transactions/history', authenticate, async (req, res) => {
-  try {
-    const user = await User.findById(req.user.id);
-    if (!user) {
-      return res.status(404).json({ message: 'User not found' });
-    }
-
-    res.json({
-      success: true,
-      rewards: user.rewardHistory || []
-    });
-  } catch (error) {
-    console.error('Error fetching reward history:', error);
-    res.status(500).json({ message: 'Server error' });
-  }
-});
 // GET /withdraw/history
 app.get('/withdraw/history', authenticate, async (req, res) => {
   try {
