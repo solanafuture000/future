@@ -307,6 +307,18 @@ app.get('/transactions/history', authenticate, async (req, res) => {
     res.status(500).json({ message: 'Server error' });
   }
 });
+// GET /withdraw/history
+app.get('/withdraw/history', authenticate, async (req, res) => {
+  try {
+    const requests = await WithdrawRequest.find({ userId: req.user.id })
+      .sort({ requestedAt: -1 });
+
+    res.json({ success: true, history: requests });
+  } catch (err) {
+    console.error('Withdraw history error:', err);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
 
 // STAKE
 app.post('/stake', authenticate, async (req, res) => {
