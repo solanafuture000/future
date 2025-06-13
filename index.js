@@ -244,7 +244,6 @@ app.get('/profile', authenticate, async (req, res) => {
 });
 
 // WITHDRAW
-// WITHDRAW
 app.post('/withdraw', authenticate, async (req, res) => {
   try {
     const { amount, address } = req.body;
@@ -263,8 +262,17 @@ app.post('/withdraw', authenticate, async (req, res) => {
     if (user.balance < withdrawAmount)
       return res.status(400).json({ message: 'Insufficient balance' });
 
-    // ✅ Deduct balance
+    // ✅ Balance deduct & save
     user.balance -= withdrawAmount;
+    await user.save();
+
+    const request = new WithdrawRequest({
+      userId: user._id,
+      walletAddress: address, // ✅ custom address
+      amount: withdrawAmount,
+      status: 'pending'
+    });
+    await request.save();
 
     // ✅ Add to rewardHistory
     user.rewardHistory.push({
@@ -272,17 +280,9 @@ app.post('/withdraw', authenticate, async (req, res) => {
       type: 'Withdraw',
       amount: withdrawAmount
     });
-
     await user.save();
 
-    const request = new WithdrawRequest({
-      userId: user._id,
-      walletAddress: address || user.solanaWallet.publicKey, // use user input if available
-      amount: withdrawAmount
-    });
-    await request.save();
-
-    res.json({ success: true, message: 'Withdrawal request submitted. Admin will process it soon.' });
+    res.json({ success: true, message: 'Withdrawal request submitted. Awaiting admin approval.' });
 
   } catch (err) {
     console.error('Withdraw error:', err);
