@@ -290,8 +290,8 @@ app.post('/withdraw', authenticate, async (req, res) => {
   }
 });
     
-// GET /rewards/history - fetch user reward history
-app.get('/rewards/history', authenticate, async (req, res) => {
+// ✅ GET /transactions/history
+app.get('/transactions/history', authenticate, async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
     if (!user) {
@@ -299,6 +299,7 @@ app.get('/rewards/history', authenticate, async (req, res) => {
     }
 
     res.json({
+      success: true,
       rewards: user.rewardHistory || []
     });
   } catch (error) {
