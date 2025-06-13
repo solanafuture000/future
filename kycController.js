@@ -2,7 +2,7 @@ const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
 const FormData = require('form-data');
-const User = require('../models/User');
+
 
 // ✅ Face++ credentials
 // Replace in your code
