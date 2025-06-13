@@ -5,8 +5,9 @@ const FormData = require('form-data');
 const User = require('../models/User');
 
 // ✅ Face++ credentials
-const FACEPP_API_KEY = '20Wza9102OVnDvgl2ptAsij0UuGEAMQV';
-const FACEPP_API_SECRET = 'KjTuojESnEWbYgrdLca5ahR0AKqkX1Vf';
+// Replace in your code
+const FACEPP_API_KEY = process.env.FACEPP_API_KEY;
+const FACEPP_API_SECRET = process.env.FACEPP_API_SECRET;
 
 // 🔹 KYC SUBMIT: Save selfie + mark as pending
 const submitKYC = async (req, res) => {
