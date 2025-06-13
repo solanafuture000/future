@@ -244,9 +244,10 @@ app.get('/profile', authenticate, async (req, res) => {
 });
 
 // WITHDRAW
+// WITHDRAW
 app.post('/withdraw', authenticate, async (req, res) => {
   try {
-    const { amount } = req.body;
+    const { amount, address } = req.body;
     const user = await User.findById(req.user.id);
 
     if (!user || !user.solanaWallet?.publicKey)
@@ -262,13 +263,21 @@ app.post('/withdraw', authenticate, async (req, res) => {
     if (user.balance < withdrawAmount)
       return res.status(400).json({ message: 'Insufficient balance' });
 
-    // ✅ Create request and deduct balance
+    // ✅ Deduct balance
     user.balance -= withdrawAmount;
+
+    // ✅ Add to rewardHistory
+    user.rewardHistory.push({
+      date: new Date(),
+      type: 'Withdraw',
+      amount: withdrawAmount
+    });
+
     await user.save();
 
     const request = new WithdrawRequest({
       userId: user._id,
-      walletAddress: user.solanaWallet.publicKey,
+      walletAddress: address || user.solanaWallet.publicKey, // use user input if available
       amount: withdrawAmount
     });
     await request.save();
