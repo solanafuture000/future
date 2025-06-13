@@ -413,6 +413,18 @@ app.post('/mine/claim', authenticate, async (req, res) => {
     res.status(500).json({ message: 'Error during claim' });
   }
 });
+// GET reward history
+app.get('/rewards/history', authenticate, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    res.json({ rewards: user.rewardHistory });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Failed to fetch reward history' });
+  }
+});
 
 
 const PORT = process.env.PORT || 3005;
