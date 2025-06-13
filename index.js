@@ -414,19 +414,6 @@ app.post('/mine/claim', authenticate, async (req, res) => {
     res.status(500).json({ message: 'Error during claim' });
   }
 });
-// GET reward history
-app.get('/rewards/history', authenticate, async (req, res) => {
-  try {
-    const user = await User.findById(req.user.id);
-    if (!user) return res.status(404).json({ message: 'User not found' });
-
-    res.json({ rewards: user.rewardHistory });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Failed to fetch reward history' });
-  }
-});
-// ✅ Combined reward & withdraw history
 app.get('/rewards/history', authenticate, async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
@@ -434,7 +421,7 @@ app.get('/rewards/history', authenticate, async (req, res) => {
 
     const rewards = user.rewardHistory.map(r => ({
       date: r.date,
-      type: r.type,
+      type: r.type || 'Reward',
       amount: r.amount,
       status: r.status || 'Success'
     }));
@@ -448,7 +435,10 @@ app.get('/rewards/history', authenticate, async (req, res) => {
       status: w.status
     }));
 
-    res.json({ success: true, history: [...rewards, ...withdraws] });
+    const fullHistory = [...rewards, ...withdraws].sort((a, b) => new Date(b.date) - new Date(a.date));
+
+    res.json({ success: true, history: fullHistory });
+
   } catch (err) {
     console.error('Reward History Error:', err);
     res.status(500).json({ message: 'Failed to fetch reward history' });
