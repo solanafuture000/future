@@ -425,6 +425,34 @@ app.get('/rewards/history', authenticate, async (req, res) => {
     res.status(500).json({ message: 'Failed to fetch reward history' });
   }
 });
+// ✅ Combined reward & withdraw history
+app.get('/rewards/history', authenticate, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    const rewards = user.rewardHistory.map(r => ({
+      date: r.date,
+      type: r.type,
+      amount: r.amount,
+      status: r.status || 'Success'
+    }));
+
+    const withdrawRequests = await WithdrawRequest.find({ userId: user._id }).sort({ requestedAt: -1 });
+
+    const withdraws = withdrawRequests.map(w => ({
+      date: w.requestedAt,
+      type: 'Withdraw',
+      amount: w.amount,
+      status: w.status
+    }));
+
+    res.json({ success: true, history: [...rewards, ...withdraws] });
+  } catch (err) {
+    console.error('Reward History Error:', err);
+    res.status(500).json({ message: 'Failed to fetch reward history' });
+  }
+});
 
 
 const PORT = process.env.PORT || 3005;
