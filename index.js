@@ -289,11 +289,6 @@ app.post('/withdraw', authenticate, async (req, res) => {
     res.status(500).json({ message: 'Withdraw failed. Try again later.' });
   }
 });
-    
-reward-history.html:125 
- GET https://solana-future.onrender.com/rewards/history 404 (Not Found)
-
-reward-history.html:155 Error fetching rewards: SyntaxError: Unexpected token '<', "<!DOCTYPE "... is not valid JSON
 ﻿
 
 
