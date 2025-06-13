@@ -282,7 +282,7 @@ app.post('/withdraw', authenticate, async (req, res) => {
     });
     await user.save();
 
-    res.json({ success: true, message: 'Withdrawal request submitted. Awaiting admin approval.' });
+    res.json({ success: true, message: 'Withdrawal request submitted.' });
 
   } catch (err) {
     console.error('Withdraw error:', err);
