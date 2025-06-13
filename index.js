@@ -290,35 +290,12 @@ app.post('/withdraw', authenticate, async (req, res) => {
   }
 });
     
-// ✅ GET /transactions/history
-app.get('/transactions/history', authenticate, async (req, res) => {
-  try {
-    const user = await User.findById(req.user.id);
-    if (!user) {
-      return res.status(404).json({ message: 'User not found' });
-    }
+reward-history.html:125 
+ GET https://solana-future.onrender.com/rewards/history 404 (Not Found)
 
-    res.json({
-      success: true,
-      rewards: user.rewardHistory || []
-    });
-  } catch (error) {
-    console.error('Error fetching reward history:', error);
-    res.status(500).json({ message: 'Server error' });
-  }
-});
-// GET /withdraw/history
-app.get('/withdraw/history', authenticate, async (req, res) => {
-  try {
-    const requests = await WithdrawRequest.find({ userId: req.user.id })
-      .sort({ requestedAt: -1 });
+reward-history.html:155 Error fetching rewards: SyntaxError: Unexpected token '<', "<!DOCTYPE "... is not valid JSON
+﻿
 
-    res.json({ success: true, history: requests });
-  } catch (err) {
-    console.error('Withdraw history error:', err);
-    res.status(500).json({ success: false, message: 'Server error' });
-  }
-});
 
 // STAKE
 app.post('/stake', authenticate, async (req, res) => {
