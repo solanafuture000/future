@@ -276,10 +276,12 @@ app.post('/withdraw', authenticate, async (req, res) => {
 
     // ✅ Add to rewardHistory
     user.rewardHistory.push({
-      date: new Date(),
-      type: 'Withdraw',
-      amount: withdrawAmount
-    });
+  date: new Date(),
+  type: 'Withdraw',
+  amount: withdrawAmount,
+  status: 'pending' // ➕ اگر آپ چاہیں تو status بھی store کریں
+});
+
     await user.save();
 
     res.json({ success: true, message: 'Withdrawal request submitted. Awaiting admin approval.' });
