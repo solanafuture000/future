@@ -12,7 +12,7 @@ const fs = require('fs');
 const nodemailer = require('nodemailer');
 const User = require('./userSchema');
 const { verifyKYC } = require('./controllers/kycController');
-
+const WithdrawRequest = require('./models/withdrawRequest');
 
 
 const app = express();
@@ -243,54 +243,43 @@ app.get('/profile', authenticate, async (req, res) => {
   });
 });
 
-
 // WITHDRAW
 app.post('/withdraw', authenticate, async (req, res) => {
   try {
     const { amount } = req.body;
     const user = await User.findById(req.user.id);
 
-    if (!user) return res.status(404).json({ message: 'User not found' });
+    if (!user || !user.solanaWallet?.publicKey)
+      return res.status(400).json({ message: 'Invalid user or wallet' });
 
-    // ✅ KYC must be verified
-    if (user.kyc.status !== 'verified') {
-      return res.status(400).json({ message: 'KYC not verified. Please complete your KYC to withdraw.' });
-    }
+    if (user.kyc.status !== 'verified')
+      return res.status(400).json({ message: 'KYC not verified' });
 
     const withdrawAmount = parseFloat(amount);
-    if (isNaN(withdrawAmount) || withdrawAmount < 0.1) {
-      return res.status(400).json({ message: 'Minimum withdrawal amount is 0.1 SOL' });
-    }
+    if (isNaN(withdrawAmount) || withdrawAmount < 0.1)
+      return res.status(400).json({ message: 'Minimum withdrawal is 0.1 SOL' });
 
-    // ✅ Balance check
-    if (user.balance < withdrawAmount) {
+    if (user.balance < withdrawAmount)
       return res.status(400).json({ message: 'Insufficient balance' });
-    }
 
-    // ✅ Deduct balance
+    // ✅ Create request and deduct balance
     user.balance -= withdrawAmount;
-
-    // ✅ Add to reward history
-    user.rewardHistory.push({
-      date: new Date(),
-      type: 'Withdraw',
-      amount: -withdrawAmount
-    });
-
     await user.save();
 
-    res.json({
-      success: true,
-      message: `Withdrawal of ${withdrawAmount} SOL successful`,
-      balance: user.balance
+    const request = new WithdrawRequest({
+      userId: user._id,
+      walletAddress: user.solanaWallet.publicKey,
+      amount: withdrawAmount
     });
+    await request.save();
+
+    res.json({ success: true, message: 'Withdrawal request submitted. Admin will process it soon.' });
 
   } catch (err) {
     console.error('Withdraw error:', err);
-    res.status(500).json({ message: 'Withdraw failed. Please try again later.' });
+    res.status(500).json({ message: 'Withdraw failed. Try again later.' });
   }
 });
-
     
 // GET /rewards/history - fetch user reward history
 app.get('/rewards/history', authenticate, async (req, res) => {
