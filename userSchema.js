@@ -38,12 +38,13 @@ const userSchema = new mongoose.Schema({
     lastClaimed: { type: Date, default: new Date(0) }
   },
 
-  // ✅ Reward history (for mining, staking, deposit)
+  // ✅ Reward history (for mining, staking, deposit, etc.)
   rewardHistory: [
     {
       date: { type: Date, default: Date.now },
-      type: { type: String, required: true },   // e.g., 'Mining', 'Deposit'
-      amount: { type: Number, required: true }
+      type: { type: String, required: true },       // e.g., 'Mining', 'Deposit'
+      amount: { type: Number, required: true },
+      status: { type: String, default: 'success' }  // success, pending, rejected
     }
   ],
 
