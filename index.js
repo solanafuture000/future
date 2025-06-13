@@ -437,7 +437,7 @@ app.post('/mine/claim', authenticate, async (req, res) => {
     res.status(500).json({ message: 'Error during claim' });
   }
 });
-app.post("/kyc/submit", authenticate, upload.single("selfie"), verifyKYC);
+
 
 const PORT = process.env.PORT || 3005;
 app.listen(PORT, () => {
