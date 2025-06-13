@@ -12,7 +12,8 @@ const fs = require('fs');
 const nodemailer = require('nodemailer');
 const kycController = require('./kycController');
 const WithdrawRequest = require('./models/withdrawRequest');
-const User = require('./models/user');
+const User = require('./User');
+
 
 
 const app = express();
