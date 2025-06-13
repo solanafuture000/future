@@ -11,7 +11,7 @@ const path = require('path');
 const fs = require('fs');
 const nodemailer = require('nodemailer');
 const User = require('./userSchema');
-const { verifyKYC } = require('./controllers/kycController');
+const { verifyKYC } = require('kycController');
 const WithdrawRequest = require('./models/withdrawRequest');
 
 
