@@ -14,10 +14,7 @@ const kycController = require('./kycController');
 const WithdrawRequest = require('./models/withdrawRequest');
 const User = require('./User');
 const kycRoutes = require('./kycRoutes');
-
-
-app.use(express.static(path.join(__dirname, 'public')))
-app.use('/admin', require('./adminRoutes'));
+const adminRoutes = require('./adminRoutes');
 
 
 const app = express();
@@ -29,14 +26,13 @@ app.use(cors({
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true
 }));
-const kycRoutes = require('./kycRoutes');
+
 app.use('/api', kycRoutes); // Now all KYC endpoints work under /api
-
-const adminRoutes = require('./adminRoutes');
-app.use('/api/admin', adminRoutes);
-
 app.use(express.json());
 app.use('/uploads', express.static('uploads'));
+app.use('/admin', adminRoutes);
+app.use(express.static(path.join(__dirname, 'public')))
+
 
 const transporter = nodemailer.createTransport({
     service: 'gmail',
