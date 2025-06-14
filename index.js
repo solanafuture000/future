@@ -473,6 +473,28 @@ app.post('/mine/claim', authenticate, async (req, res) => {
   }
 });
 
+app.post('/kyc/live-submit', authenticate, upload.single('selfie'), async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    if (!req.file) return res.status(400).json({ message: 'Selfie file is required' });
+
+    if (user.balance < 0.01) {
+      return res.status(400).json({ message: 'Minimum 0.01 SOL required for KYC' });
+    }
+
+    user.kyc.imagePath = req.file.path;
+    user.kyc.status = 'pending';
+    user.kyc.submittedAt = new Date();
+    await user.save();
+
+    res.json({ success: true, message: '✅ Selfie submitted successfully. You’ll get verified within 3 hours.' });
+  } catch (err) {
+    console.error('Live KYC error:', err);
+    res.status(500).json({ success: false, message: '❌ Server error during KYC submission' });
+  }
+});
 
 
 const PORT = process.env.PORT || 3005;
