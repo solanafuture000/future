@@ -98,11 +98,16 @@ async function getUplineUsers(username, levels = 10) {
 // REGISTER
 app.post('/register', async (req, res) => {
   try {
-    const { username, email, password, referredBy } = req.body;
+    let { username, email, password, referredBy } = req.body;
 
     if (!username || !email || !password)
       return res.status(400).json({ success: false, message: 'Please provide username, email and password' });
 
+    // Trim inputs
+    username = username.trim();
+    email = email.trim();
+
+    // Check existing users
     const existingEmail = await User.findOne({ email });
     if (existingEmail)
       return res.status(400).json({ success: false, message: 'Email already exists' });
@@ -122,25 +127,26 @@ app.post('/register', async (req, res) => {
         publicKey: wallet.publicKey.toString(),
         secretKey: Buffer.from(wallet.secretKey).toString('base64'),
       },
-      referredBy,
+      referredBy: null,
       balance: 0,
       mining: { lastClaimed: new Date(0) },
       kyc: { status: 'pending' },
       referrals: []
     });
 
-    await newUser.save();
-
-    // ✅ ReferredBy Logic (but reward only after KYC + Deposit)
+    // ✅ Check for valid referrer
     if (referredBy) {
-      const referrer = await User.findOne({ username: referredBy });
+      const referrer = await User.findOne({ username: referredBy.trim() });
       if (referrer) {
-        referrer.referrals.push({ username });
+        newUser.referredBy = referrer._id; // store ObjectId reference
+        referrer.referrals.push({ username: newUser.username });
         await referrer.save();
       }
     }
 
-    // Send welcome email (optional)
+    await newUser.save();
+
+    // Optional: Send welcome email
     await sendWelcomeEmail(email, username);
 
     const token = jwt.sign(
@@ -162,8 +168,7 @@ app.post('/register', async (req, res) => {
     console.error(err);
     res.status(500).json({ success: false, message: 'Server error' });
   }
-});
-// ✅ Leaderboard Route (Fixed)
+});// ✅ Leaderboard Route (Fixed)
 app.get('/leaderboard', async (req, res) => {
   try {
     const topUsers = await User.find({})
