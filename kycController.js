@@ -1,13 +1,7 @@
-const axios = require('axios');
 const fs = require('fs');
-const FormData = require('form-data');
 const User = require('./User');
 
-// 🔐 Face++ credentials from .env
-const FACEPP_API_KEY = process.env.FACEPP_API_KEY;
-const FACEPP_API_SECRET = process.env.FACEPP_API_SECRET;
-
-// 🔹 Submit KYC
+// 🔹 Submit KYC (Selfie with CNIC in hand)
 const submitKYC = async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
@@ -22,7 +16,7 @@ const submitKYC = async (req, res) => {
     }
 
     if (!req.file) {
-      return res.status(400).json({ message: 'Selfie image is required' });
+      return res.status(400).json({ message: 'Selfie with CNIC is required' });
     }
 
     user.kyc.imagePath = req.file.path;
@@ -30,77 +24,52 @@ const submitKYC = async (req, res) => {
     user.kyc.status = 'pending';
     await user.save();
 
-    res.json({ success: true, message: '✅ Selfie submitted. Please verify now.' });
+    res.json({ success: true, message: '✅ Selfie with CNIC submitted. Admin will review your KYC.' });
   } catch (error) {
     console.error('KYC Submit Error:', error);
     res.status(500).json({ message: '❌ Server error during KYC submission' });
   }
 };
 
-// 🔹 Verify KYC
-const verifyKYC = async (req, res) => {
+// 🔹 Admin: Manually Verify KYC
+const approveKYC = async (req, res) => {
   try {
-    const user = await User.findById(req.user.id);
+    const { userId } = req.params;
+    const user = await User.findById(userId);
     if (!user) return res.status(404).json({ message: 'User not found' });
 
     if (user.kyc.status === 'verified') {
-      return res.status(400).json({ message: 'KYC already verified' });
+      return res.status(400).json({ message: 'User is already verified' });
     }
 
-    if (!user.kyc.imagePath || !fs.existsSync(user.kyc.imagePath)) {
-      return res.status(400).json({ message: '❌ Selfie not found. Please re-submit KYC.' });
-    }
+    user.kyc.status = 'verified';
+    user.kyc.verifiedAt = new Date();
+    await user.save();
 
-    const form = new FormData();
-    form.append('api_key', FACEPP_API_KEY);
-    form.append('api_secret', FACEPP_API_SECRET);
-    form.append('image_file', fs.createReadStream(user.kyc.imagePath));
-    form.append('return_attributes', 'blur,eyestatus,headpose');
-
-    const response = await axios.post(
-      'https://api-us.faceplusplus.com/facepp/v3/detect',
-      form,
-      { headers: form.getHeaders() }
-    );
-
-    const faces = response.data.faces;
-
-    // 🧹 Cleanup image
-    fs.unlinkSync(user.kyc.imagePath);
-    user.kyc.imagePath = undefined;
-
-    if (faces && faces.length > 0) {
-      user.kyc.status = 'verified';
-      user.kyc.verifiedAt = new Date();
-      await user.save();
-
-      // 🎁 Referral reward
-      if (user.referrer) {
-        const referrer = await User.findById(user.referrer);
-        if (referrer) {
-          referrer.balance += 0.01;
-          referrer.boostPercent = (referrer.boostPercent || 0) + 5;
-          referrer.rewardHistory.push({
-            type: 'Referral Reward',
-            amount: 0.01,
-            date: new Date(),
-            status: 'Success'
-          });
-          await referrer.save();
-        }
+    // ✅ Referral reward
+    if (user.referrer) {
+      const referrer = await User.findById(user.referrer);
+      if (referrer) {
+        referrer.balance += 0.01;
+        referrer.boostPercent = (referrer.boostPercent || 0) + 5;
+        referrer.rewardHistory.push({
+          type: 'Referral Reward',
+          amount: 0.01,
+          date: new Date(),
+          status: 'Success'
+        });
+        await referrer.save();
       }
-
-      return res.json({ success: true, message: '✅ KYC Verified Successfully' });
-    } else {
-      user.kyc.status = 'failed';
-      await user.save();
-      return res.status(400).json({ success: false, message: '❌ Face not detected. Try again.' });
     }
 
+    res.json({ success: true, message: '✅ KYC verified successfully' });
   } catch (error) {
-    console.error('KYC Verification Error:', error);
-    res.status(500).json({ success: false, message: '❌ Server error during verification' });
+    console.error('KYC Approve Error:', error);
+    res.status(500).json({ message: '❌ Server error during approval' });
   }
 };
 
-module.exports = { submitKYC, verifyKYC };
+module.exports = {
+  submitKYC,
+  approveKYC
+};
