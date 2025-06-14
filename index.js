@@ -63,20 +63,6 @@ mongoose.connect(process.env.MONGO_URI, {
     console.log('✅ MongoDB connected');
 }).catch(err => console.error('❌ MongoDB error:', err));
 
-const authenticate = (req, res, next) => {
-    const authHeader = req.headers.authorization;
-    if (!authHeader) return res.status(401).json({ message: 'Unauthorized - Token missing' });
-
-    const token = authHeader.split(' ')[1] || authHeader;
-    try {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secretKey');
-        req.user = decoded;
-        next();
-    } catch {
-        return res.status(401).json({ message: 'Invalid token' });
-    }
-};
-
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
         const dir = './uploads';
