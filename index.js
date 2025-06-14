@@ -15,6 +15,7 @@ const WithdrawRequest = require('./models/withdrawRequest');
 const User = require('./User');
 const kycRoutes = require('./kycRoutes');
 const adminRoutes = require('./adminRoutes');
+const authenticate = require('./authenticate');
 
 
 const app = express();
