@@ -1,21 +1,43 @@
 const express = require('express');
 const router = express.Router();
-const authenticate = require('./middleware/authenticate'); // Token verify
-const isAdmin = require('./middleware/admin'); // Admin check
+const jwt = require('jsonwebtoken');
 const User = require('./User');
 
-// 🔹 GET: All Pending KYC Requests
+// ✅ Middleware: Authenticate user from JWT
+const authenticate = (req, res, next) => {
+  const token = req.headers.authorization?.split(" ")[1];
+  if (!token) return res.status(401).json({ message: "Unauthorized" });
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secretKey');
+    req.user = decoded;
+    next();
+  } catch (err) {
+    return res.status(401).json({ message: "Invalid token" });
+  }
+};
+
+// ✅ Middleware: Check if user is admin
+const isAdmin = async (req, res, next) => {
+  const user = await User.findById(req.user.id);
+  if (!user || user.email !== 'admin@solana.com') {
+    return res.status(403).json({ message: "Admin access required" });
+  }
+  next();
+};
+
+// ✅ GET all KYC requests (pending)
 router.get('/kyc-requests', authenticate, isAdmin, async (req, res) => {
   try {
     const requests = await User.find({ 'kyc.status': 'pending' });
     res.json(requests);
-  } catch (err) {
-    console.error('❌ Error fetching KYC requests:', err);
+  } catch (error) {
+    console.error('Fetch KYC error:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });
 
-// 🔹 POST: Approve KYC
+// ✅ Approve KYC
 router.post('/approve/:id', authenticate, isAdmin, async (req, res) => {
   try {
     const user = await User.findById(req.params.id);
@@ -26,14 +48,13 @@ router.post('/approve/:id', authenticate, isAdmin, async (req, res) => {
     user.kyc.approvedByAdmin = true;
     await user.save();
 
-    res.json({ success: true, message: '✅ KYC approved successfully.' });
+    res.json({ success: true, message: '✅ KYC approved manually' });
   } catch (err) {
-    console.error('❌ Approval error:', err);
     res.status(500).json({ message: 'Server error during approval' });
   }
 });
 
-// 🔹 POST: Reject KYC
+// ✅ Reject KYC
 router.post('/reject/:id', authenticate, isAdmin, async (req, res) => {
   try {
     const user = await User.findById(req.params.id);
@@ -42,9 +63,8 @@ router.post('/reject/:id', authenticate, isAdmin, async (req, res) => {
     user.kyc.status = 'rejected';
     await user.save();
 
-    res.json({ success: true, message: '❌ KYC rejected.' });
+    res.json({ success: true, message: '❌ KYC rejected' });
   } catch (err) {
-    console.error('❌ Rejection error:', err);
     res.status(500).json({ message: 'Server error during rejection' });
   }
 });
