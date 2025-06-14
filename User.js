@@ -15,6 +15,9 @@ const userSchema = new mongoose.Schema({
   // ✅ Main Balance
   balance: { type: Number, default: 0 },
 
+  // ✅ Admin Role
+  isAdmin: { type: Boolean, default: false },
+
   // ✅ Referral System
   referredBy: { type: String, default: null },
   referrals: [
@@ -27,11 +30,14 @@ const userSchema = new mongoose.Schema({
   // ✅ KYC Information
   kyc: {
     imagePath: String,
-    status: { type: String, default: "not_started" }, // not_started, pending, verified, failed
+    status: { type: String, default: "not_started" }, // not_started, pending, verified, failed, rejected
     submittedAt: Date,
     verifiedAt: Date,
     verificationStartedAt: Date,
-    retryAfter: Date
+    retryAfter: Date,
+    approvedByAdmin: { type: Boolean, default: false },
+    reviewedBy: String, // Admin username or ID
+    reviewedAt: Date
   },
 
   // ✅ Mining Info
@@ -56,6 +62,16 @@ const userSchema = new mongoose.Schema({
     lastClaimed: Date
   },
   stakingReward: { type: Number, default: 0 },
+
+  // ✅ Admin Logs (for actions taken on this user)
+  adminLogs: [
+    {
+      action: String,              // e.g. 'KYC Approved', 'KYC Rejected'
+      performedBy: String,         // admin ID or name
+      date: { type: Date, default: Date.now },
+      reason: String
+    }
+  ],
 
   // ✅ Account Creation Date
   createdAt: { type: Date, default: Date.now }
