@@ -1,14 +1,14 @@
 const express = require('express');
 const router = express.Router();
 
-const { submitKYC, verifyKYC } = require('./kycController');
+const { submitKYC, approveKYC } = require('./kycController');
 const authenticate = require('./authenticate');
-const upload = require('./upload'); // ✅ یہاں upload صحیح طریقے سے import ہو رہا
+const upload = require('./upload'); // ✅ Must exist at root or correct path
 
-// 🔹 User submits selfie for KYC
+// 🔹 User submits selfie with CNIC
 router.post('/kyc/submit', authenticate, upload.single('selfie'), submitKYC);
 
-// 🔹 Backend verifies selfie
-router.post('/kyc/verify', authenticate, verifyKYC);
+// 🔹 Admin manually verifies the KYC
+router.post('/kyc/approve/:userId', authenticate, approveKYC); // ✅ Changed from 'verify' to 'approve'
 
 module.exports = router;
