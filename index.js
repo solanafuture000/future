@@ -328,70 +328,69 @@ app.post('/withdraw', authenticate, async (req, res) => {
   }
 });
 ﻿
-// Stake Route
+// ✅ Stake Route
 app.post('/stake', authenticate, async (req, res) => {
-  try {
-    const { amount } = req.body;
-    const user = await User.findById(req.user.id);
-    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+  const { amount } = req.body;
+  if (!amount || amount <= 0) return res.status(400).json({ success: false, message: "Invalid amount" });
 
-    if (user.balance < amount)
-      return res.status(400).json({ success: false, message: 'Insufficient balance' });
+  const user = await User.findById(req.user.id);
+  if (!user) return res.status(404).json({ success: false, message: "User not found" });
 
-    user.balance -= amount;
-    user.staking.amount = amount;
-    user.staking.stakedAt = new Date();
-    user.staking.isActive = true;
-    user.staking.lastRewarded = new Date();
-    await user.save();
+  if (user.balance < amount) return res.status(400).json({ success: false, message: "Insufficient balance" });
 
-    res.json({ success: true, message: 'Staked successfully' });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ success: false, message: 'Server error' });
-  }
+  user.balance -= amount;
+  user.staking = {
+    amount: amount,
+    startDate: new Date(),
+    lastClaimed: new Date()
+  };
+  await user.save();
+
+  res.json({ success: true, message: "Staked successfully", staking: user.staking });
 });
 
-// Unstake Route with 7-day penalty
+// ✅ Unstake Route
 app.post('/unstake', authenticate, async (req, res) => {
-  try {
-    const user = await User.findById(req.user.id);
-    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
+  const user = await User.findById(req.user.id);
+  if (!user || !user.staking?.amount) return res.status(400).json({ success: false, message: "No staking found" });
 
-    if (!user.staking.isActive)
-      return res.status(400).json({ success: false, message: 'No active stake found' });
+  const now = new Date();
+  const startDate = new Date(user.staking.startDate);
+  const daysStaked = (now - startDate) / (1000 * 60 * 60 * 24);
 
-    const now = new Date();
-    const stakedAt = new Date(user.staking.stakedAt);
-    const diffInMs = now - stakedAt;
-    const diffInDays = diffInMs / (1000 * 60 * 60 * 24);
+  let reward = 0;
+  let message = 'Unstaked successfully';
 
-    if (diffInDays < 7) {
-      user.balance += user.staking.amount;
+  if (daysStaked >= 7) {
+    if (daysStaked >= 30) {
+      reward = (user.staking.amount * 5 / 100);
     } else {
-      const fullDays = Math.floor(diffInDays);
-      const reward = user.staking.amount * 0.005 * fullDays;
-      user.balance += user.staking.amount + reward;
+      reward = (user.staking.amount * 3 / 100);
     }
 
-    user.staking = {
+    user.balance += reward;
+    user.stakingReward += reward;
+    user.rewardHistory.push({
+      type: 'Staking Reward (Unstake)',
+      amount: reward,
+      date: now,
+      status: 'Success'
+    });
+  } else {
+    message = "Unstaked before 7 days — reward forfeited";
+    user.rewardHistory.push({
+      type: 'Unstake (Early)',
       amount: 0,
-      stakedAt: null,
-      isActive: false,
-      lastRewarded: null
-    };
-
-    await user.save();
-
-    const message = diffInDays < 7
-      ? '⚠️ Unstaked before 7 days — rewards forfeited'
-      : '✅ Unstaked successfully with rewards';
-
-    res.json({ success: true, message });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ success: false, message: 'Server error' });
+      date: now,
+      status: 'Forfeited'
+    });
   }
+
+  user.balance += user.staking.amount;
+  user.staking = { amount: 0, startDate: null, lastClaimed: null };
+  await user.save();
+
+  res.json({ success: true, message, rewardGiven: reward });
 });
 
 // CLAIM STAKING REWARDS
