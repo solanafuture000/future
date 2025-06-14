@@ -13,7 +13,7 @@ const nodemailer = require('nodemailer');
 const kycController = require('./kycController');
 const WithdrawRequest = require('./models/withdrawRequest');
 const User = require('./User');
-
+const kycRoutes = require('./kycRoutes');
 
 
 const app = express();
