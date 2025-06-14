@@ -16,6 +16,10 @@ const User = require('./User');
 const kycRoutes = require('./kycRoutes');
 
 
+app.use(express.static(path.join(__dirname, 'public')))
+app.use('/admin', require('./adminRoutes'));
+
+
 const app = express();
 
 // Enhanced CORS configuration
