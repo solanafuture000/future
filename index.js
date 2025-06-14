@@ -28,6 +28,9 @@ app.use(cors({
 const kycRoutes = require('./kycRoutes');
 app.use('/api', kycRoutes); // Now all KYC endpoints work under /api
 
+const adminRoutes = require('./adminRoutes');
+app.use('/api/admin', adminRoutes);
+
 app.use(express.json());
 app.use('/uploads', express.static('uploads'));
 
