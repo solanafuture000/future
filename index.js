@@ -225,6 +225,43 @@ app.get('/profile', authenticate, async (req, res) => {
   const user = await User.findById(req.user.id);
   if (!user) return res.status(404).json({ success: false, message: "User not found" });
 
+  // ✅ Check staking status
+  if (user.staking && user.staking.amount > 0 && user.staking.startDate) {
+    const now = new Date();
+    const lastClaimed = new Date(user.staking.lastClaimed || user.staking.startDate);
+    const hoursPassed = (now - lastClaimed) / (1000 * 60 * 60);
+
+    if (hoursPassed >= 24) {
+      const daysStaked = (now - new Date(user.staking.startDate)) / (1000 * 60 * 60 * 24);
+
+      let dailyPercent = 0;
+      if (daysStaked >= 30) {
+        dailyPercent = 5;
+      } else if (daysStaked >= 7) {
+        dailyPercent = 3;
+      }
+
+      if (dailyPercent > 0) {
+        const rewardAmount = (user.staking.amount * dailyPercent) / 100;
+
+        // Update user
+        user.balance += rewardAmount;
+        user.stakingReward = (user.stakingReward || 0) + rewardAmount;
+        user.staking.lastClaimed = now;
+
+        user.rewardHistory.push({
+          type: 'Staking Reward',
+          amount: rewardAmount,
+          date: now,
+          status: 'Success'
+        });
+
+        await user.save();
+      }
+    }
+  }
+
+  // ✅ Send profile info
   res.json({
     success: true,
     user: {
@@ -235,8 +272,6 @@ app.get('/profile', authenticate, async (req, res) => {
       stakingReward: user.stakingReward || 0,
       solanaWallet: user.solanaWallet,
       referredBy: user.referredBy,
-
-      // ✅ Ensure KYC object is never missing
       kyc: {
         status: user.kyc?.status || "not_started",
         imagePath: user.kyc?.imagePath || null,
@@ -248,7 +283,6 @@ app.get('/profile', authenticate, async (req, res) => {
     }
   });
 });
-
 // WITHDRAW
 app.post('/withdraw', authenticate, async (req, res) => {
   try {
