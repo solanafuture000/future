@@ -3,7 +3,7 @@ const router = express.Router();
 
 const { submitKYC, verifyKYC } = require('./kycController');
 const authenticate = require('./authenticate');
-const upload = require('./middleware/upload');
+const upload = require('./upload'); // ✅ fixed path here
 
 // 🔹 User submits selfie for KYC
 router.post('/kyc/submit', authenticate, upload.single('selfie'), submitKYC);
