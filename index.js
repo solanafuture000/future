@@ -25,6 +25,8 @@ app.use(cors({
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true
 }));
+const kycRoutes = require('./kycRoutes');
+app.use('/api', kycRoutes); // Now all KYC endpoints work under /api
 
 app.use(express.json());
 app.use('/uploads', express.static('uploads'));
