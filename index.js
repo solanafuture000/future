@@ -294,37 +294,70 @@ app.post('/withdraw', authenticate, async (req, res) => {
   }
 });
 ﻿
-
-
-// STAKE
+// Stake Route
 app.post('/stake', authenticate, async (req, res) => {
-  const { amount } = req.body;
-  if (typeof amount !== 'number' || amount < 1)
-    return res.status(400).json({ message: 'Minimum stake is 1 SOL' });
+  try {
+    const { amount } = req.body;
+    const user = await User.findById(req.user.id);
+    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
 
-  const user = await User.findById(req.user.id);
-  if (!user) return res.status(404).json({ message: 'User not found' });
+    if (user.balance < amount)
+      return res.status(400).json({ success: false, message: 'Insufficient balance' });
 
-  if (user.balance < amount)
-    return res.status(400).json({ message: 'Insufficient balance to stake' });
+    user.balance -= amount;
+    user.staking.amount = amount;
+    user.staking.stakedAt = new Date();
+    user.staking.isActive = true;
+    user.staking.lastRewarded = new Date();
+    await user.save();
 
-  if (user.staking.amount > 0)
-    return res.status(400).json({ message: 'You already have active staking' });
+    res.json({ success: true, message: 'Staked successfully' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
 
-  user.balance -= amount;
+// Unstake Route with 7-day penalty
+app.post('/unstake', authenticate, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user) return res.status(404).json({ success: false, message: 'User not found' });
 
-  user.rewardHistory.push({
-    date: new Date(),
-    type: 'Staking',
-    amount: amount
-  });
+    if (!user.staking.isActive)
+      return res.status(400).json({ success: false, message: 'No active stake found' });
 
-  user.staking.amount = amount;
-  user.staking.startTime = new Date();
-  user.staking.lastClaimed = new Date();
-  await user.save();
+    const now = new Date();
+    const stakedAt = new Date(user.staking.stakedAt);
+    const diffInMs = now - stakedAt;
+    const diffInDays = diffInMs / (1000 * 60 * 60 * 24);
 
-  res.json({ message: `Staked ${amount} SOL for 30 days`, staking: user.staking });
+    if (diffInDays < 7) {
+      user.balance += user.staking.amount;
+    } else {
+      const fullDays = Math.floor(diffInDays);
+      const reward = user.staking.amount * 0.005 * fullDays;
+      user.balance += user.staking.amount + reward;
+    }
+
+    user.staking = {
+      amount: 0,
+      stakedAt: null,
+      isActive: false,
+      lastRewarded: null
+    };
+
+    await user.save();
+
+    const message = diffInDays < 7
+      ? '⚠️ Unstaked before 7 days — rewards forfeited'
+      : '✅ Unstaked successfully with rewards';
+
+    res.json({ success: true, message });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
 });
 
 // CLAIM STAKING REWARDS
