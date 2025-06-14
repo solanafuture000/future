@@ -4,9 +4,7 @@ const path = require('path');
 const FormData = require('form-data');
 const User = require('./User');
 
-// ✅ Face++ credentials
-const FACEPP_API_KEY = process.env.FACEPP_API_KEY;
-const FACEPP_API_SECRET = process.env.FACEPP_API_SECRET;
+console.log("Face++ Key:", process.env.FACEPP_API_KEY);
 
 // 🔹 SUBMIT KYC
 const submitKYC = async (req, res) => {
