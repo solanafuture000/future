@@ -1,12 +1,13 @@
 const axios = require('axios');
 const fs = require('fs');
-const path = require('path');
 const FormData = require('form-data');
 const User = require('./User');
 
-console.log("Face++ Key:", process.env.FACEPP_API_KEY);
+// 🔐 Face++ credentials from .env
+const FACEPP_API_KEY = process.env.FACEPP_API_KEY;
+const FACEPP_API_SECRET = process.env.FACEPP_API_SECRET;
 
-// 🔹 SUBMIT KYC
+// 🔹 Submit KYC
 const submitKYC = async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
@@ -26,18 +27,17 @@ const submitKYC = async (req, res) => {
 
     user.kyc.imagePath = req.file.path;
     user.kyc.submittedAt = new Date();
-    user.kyc.verificationStartedAt = new Date();
     user.kyc.status = 'pending';
     await user.save();
 
-    res.json({ success: true, message: 'Selfie submitted. Please verify within 5 minutes.' });
+    res.json({ success: true, message: '✅ Selfie submitted. Please verify now.' });
   } catch (error) {
-    console.error('KYC submit error:', error);
-    res.status(500).json({ message: 'Server error during KYC submission' });
+    console.error('KYC Submit Error:', error);
+    res.status(500).json({ message: '❌ Server error during KYC submission' });
   }
 };
 
-// 🔹 VERIFY KYC
+// 🔹 Verify KYC
 const verifyKYC = async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
@@ -48,21 +48,7 @@ const verifyKYC = async (req, res) => {
     }
 
     if (!user.kyc.imagePath || !fs.existsSync(user.kyc.imagePath)) {
-      return res.status(400).json({ message: 'Selfie not found. Please re-submit KYC.' });
-    }
-
-    const now = new Date();
-    const diff = now - new Date(user.kyc.verificationStartedAt);
-    if (diff > 5 * 60 * 1000) {
-      user.kyc.status = 'failed';
-      fs.unlinkSync(user.kyc.imagePath);
-      user.kyc.imagePath = undefined;
-      await user.save();
-
-      return res.status(400).json({
-        success: false,
-        message: '⏱️ KYC expired. Please try again.'
-      });
+      return res.status(400).json({ message: '❌ Selfie not found. Please re-submit KYC.' });
     }
 
     const form = new FormData();
@@ -79,29 +65,27 @@ const verifyKYC = async (req, res) => {
 
     const faces = response.data.faces;
 
+    // 🧹 Cleanup image
     fs.unlinkSync(user.kyc.imagePath);
     user.kyc.imagePath = undefined;
 
     if (faces && faces.length > 0) {
       user.kyc.status = 'verified';
-      user.kyc.verifiedAt = now;
-      user.kyc.verificationStartedAt = null;
+      user.kyc.verifiedAt = new Date();
       await user.save();
 
-      // ✅ Referral reward logic
+      // 🎁 Referral reward
       if (user.referrer) {
         const referrer = await User.findById(user.referrer);
         if (referrer) {
           referrer.balance += 0.01;
           referrer.boostPercent = (referrer.boostPercent || 0) + 5;
-
           referrer.rewardHistory.push({
             type: 'Referral Reward',
             amount: 0.01,
             date: new Date(),
             status: 'Success'
           });
-
           await referrer.save();
         }
       }
@@ -110,15 +94,12 @@ const verifyKYC = async (req, res) => {
     } else {
       user.kyc.status = 'failed';
       await user.save();
-
-      return res.status(400).json({
-        success: false,
-        message: '❌ Face not detected. Try again in better lighting.'
-      });
+      return res.status(400).json({ success: false, message: '❌ Face not detected. Try again.' });
     }
+
   } catch (error) {
-    console.error('KYC verification error:', error);
-    res.status(500).json({ success: false, message: 'Server error during verification' });
+    console.error('KYC Verification Error:', error);
+    res.status(500).json({ success: false, message: '❌ Server error during verification' });
   }
 };
 
