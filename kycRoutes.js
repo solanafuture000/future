@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 
 const { submitKYC, verifyKYC } = require('./kycController');
-const authenticate = require('./middleware/authenticate');
+const authenticate = require('./authenticate');
 const upload = require('./middleware/upload');
 
 // 🔹 User submits selfie for KYC
