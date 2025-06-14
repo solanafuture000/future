@@ -8,7 +8,7 @@ const User = require('./User');
 const FACEPP_API_KEY = process.env.FACEPP_API_KEY;
 const FACEPP_API_SECRET = process.env.FACEPP_API_SECRET;
 
-// 🔹 KYC SUBMIT: Save selfie + mark as pending
+// 🔹 SUBMIT KYC
 const submitKYC = async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
@@ -39,7 +39,7 @@ const submitKYC = async (req, res) => {
   }
 };
 
-// 🔹 KYC VERIFY: Use Face++ to check if a face is detected
+// 🔹 VERIFY KYC
 const verifyKYC = async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
@@ -88,15 +88,31 @@ const verifyKYC = async (req, res) => {
       user.kyc.status = 'verified';
       user.kyc.verifiedAt = now;
       user.kyc.verificationStartedAt = null;
-    } else {
-      user.kyc.status = 'failed';
-    }
+      await user.save();
 
-    await user.save();
+      // ✅ Referral reward logic
+      if (user.referrer) {
+        const referrer = await User.findById(user.referrer);
+        if (referrer) {
+          referrer.balance += 0.01;
+          referrer.boostPercent = (referrer.boostPercent || 0) + 5;
 
-    if (user.kyc.status === 'verified') {
+          referrer.rewardHistory.push({
+            type: 'Referral Reward',
+            amount: 0.01,
+            date: new Date(),
+            status: 'Success'
+          });
+
+          await referrer.save();
+        }
+      }
+
       return res.json({ success: true, message: '✅ KYC Verified Successfully' });
     } else {
+      user.kyc.status = 'failed';
+      await user.save();
+
       return res.status(400).json({
         success: false,
         message: '❌ Face not detected. Try again in better lighting.'
