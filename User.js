@@ -1,4 +1,3 @@
-
 const mongoose = require('mongoose');
 
 const userSchema = new mongoose.Schema({
@@ -50,9 +49,13 @@ const userSchema = new mongoose.Schema({
     }
   ],
 
-  // ✅ Staking Info
-  stakingAmount: { type: Number, default: 0 },
-  stakingRewards: { type: Number, default: 0 },
+  // ✅ Staking Info (Improved)
+  staking: {
+    amount: { type: Number, default: 0 },
+    startDate: Date,
+    lastClaimed: Date
+  },
+  stakingReward: { type: Number, default: 0 },
 
   // ✅ Account Creation Date
   createdAt: { type: Date, default: Date.now }
