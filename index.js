@@ -350,8 +350,7 @@ app.post('/stake/claim', authenticate, async (req, res) => {
 
   res.json({ message: `Claimed ${reward.toFixed(4)} SOL staking rewards`, newBalance: user.balance });
 });
-
-// MINING REWARD CLAIM
+// MINING REWARD CLAIM (Updated with Boost Logic)
 app.post('/mine/claim', authenticate, async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
@@ -359,8 +358,7 @@ app.post('/mine/claim', authenticate, async (req, res) => {
 
     const now = new Date();
     const lastClaim = user.mining.lastClaimed || new Date(0);
-
-    const maxMiningDurationMs = 3 * 60 * 60 * 1000;
+    const maxMiningDurationMs = 3 * 60 * 60 * 1000; // 3 hours
     const diffMs = now - lastClaim;
     const eligibleMs = Math.min(diffMs, maxMiningDurationMs);
 
@@ -368,82 +366,50 @@ app.post('/mine/claim', authenticate, async (req, res) => {
       return res.status(400).json({ message: 'No mining reward available yet.' });
     }
 
+    // 🔹 Base reward per ms
     const rewardPerMs = 0.00025 / maxMiningDurationMs;
     let reward = rewardPerMs * eligibleMs;
 
+    // 🔹 Boost based on verified referrals
     const verifiedReferrals = await User.find({
       username: { $in: user.referrals.map(r => r.username) },
       'kyc.status': 'verified',
       balance: { $gte: 0.01 }
     });
 
-    if (verifiedReferrals.length > 0) {
-      reward += reward * 0.05 * verifiedReferrals.length;
-    }
+    const boostPercent = 0.05 * verifiedReferrals.length; // 5% per verified referral
+    const boostedReward = reward * boostPercent;
 
-    const uplines = await getUplineUsers(user.username, 10);
-    for (const upline of uplines) {
-      upline.balance += 0.00025;
-      upline.rewardHistory.push({
-        date: now,
-        type: 'Upline Bonus',
-        amount: 0.00025
-      });
-      await upline.save();
-    }
+    // Total reward = base + boost
+    const totalReward = reward + boostedReward;
 
-    user.balance += reward;
+    // 🔹 Update upline bonuses (0.01 SOL only when referral KYC verified — handled elsewhere)
+
+    // 🔹 Update user's balance and mining
+    user.balance += totalReward;
     user.mining.lastClaimed = now;
 
     user.rewardHistory.push({
       date: now,
       type: 'Mining',
-      amount: reward
+      amount: totalReward
     });
 
     await user.save();
 
     res.json({
       success: true,
-      message: `You mined ${reward.toFixed(6)} SOL!`,
-      earned: reward.toFixed(6),
+      message: `You mined ${totalReward.toFixed(6)} SOL (Boost: ${boostPercent * 100}%)!`,
+      earned: totalReward.toFixed(6),
       balance: user.balance
     });
+
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'Error during claim' });
   }
 });
-app.get('/rewards/history', authenticate, async (req, res) => {
-  try {
-    const user = await User.findById(req.user.id);
-    if (!user) return res.status(404).json({ message: 'User not found' });
 
-    const rewards = user.rewardHistory.map(r => ({
-      date: r.date,
-      type: r.type || 'Reward',
-      amount: r.amount,
-      status: r.status || 'Success'
-    }));
-
-    const withdrawRequests = await WithdrawRequest.find({ userId: user._id }).sort({ requestedAt: -1 });
-
-    const withdraws = withdrawRequests.map(w => ({
-      date: w.requestedAt,
-      type: 'Withdraw',
-      amount: w.amount,
-      status: w.status
-    }));
-
-    const fullHistory = [...rewards, ...withdraws].sort((a, b) => new Date(b.date) - new Date(a.date));
-
-    res.json({ success: true, history: fullHistory });
-
-  } catch (err) {
-    console.error('Reward History Error:', err);
-    res.status(500).json({ message: 'Failed to fetch reward history' });
-  }
-});
 
 
 const PORT = process.env.PORT || 3005;
