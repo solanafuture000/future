@@ -495,6 +495,21 @@ app.post('/kyc/live-submit', authenticate, upload.single('selfie'), async (req, 
     res.status(500).json({ success: false, message: '❌ Server error during KYC submission' });
   }
 });
+// ✅ Reward History Route
+app.get('/reward-history', authenticate, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select('rewardHistory');
+    if (!user) return res.status(404).json({ success: false, message: "User not found" });
+
+    res.json({
+      success: true,
+      history: (user.rewardHistory || []).reverse() // latest first
+    });
+  } catch (err) {
+    console.error("Reward history error:", err);
+    res.status(500).json({ success: false, message: "Failed to load reward history" });
+  }
+});
 
 
 const PORT = process.env.PORT || 3005;
