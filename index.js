@@ -330,20 +330,18 @@ app.post('/withdraw', authenticate, async (req, res) => {
 app.post('/stake', authenticate, async (req, res) => {
   const { amount } = req.body;
   if (!amount || amount < 0.1) {
-    return res.status(400).json({ success: false, message: "Minimum stake is 0.1 SOL" });
+    return res.status(400).json({ success: false, message: "❌ Minimum stake is 0.1 SOL" });
   }
 
   const user = await User.findById(req.user.id);
-  if (!user) return res.status(404).json({ success: false, message: "User not found" });
+  if (!user) return res.status(404).json({ success: false, message: "❌ User not found" });
 
   if (user.balance < amount) {
-    return res.status(400).json({ success: false, message: "Insufficient balance" });
+    return res.status(400).json({ success: false, message: "❌ Insufficient balance" });
   }
 
-  // ✅ Deduct balance
+  // Deduct balance and push to staking array
   user.balance -= amount;
-
-  // ✅ Add to stakingEntries array
   user.stakingEntries.push({
     amount,
     startDate: new Date(),
@@ -354,7 +352,6 @@ app.post('/stake', authenticate, async (req, res) => {
 
   user.totalStaked += amount;
 
-  // ✅ Log in reward history
   user.rewardHistory.push({
     type: 'Stake Start',
     amount,
@@ -364,7 +361,12 @@ app.post('/stake', authenticate, async (req, res) => {
 
   await user.save();
 
-  res.json({ success: true, message: "✅ Staking started." });
+  return res.json({
+    success: true,
+    message: `✅ You have successfully staked ${amount} SOL. Daily 4% reward will start.`,
+    balance: user.balance,
+    stakingEntries: user.stakingEntries
+  });
 });
 
 // ✅ Claim Daily Staking Rewards (4%) for All Active Stakes
