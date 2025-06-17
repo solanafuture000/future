@@ -496,7 +496,7 @@ app.post('/kyc/live-submit', authenticate, upload.single('selfie'), async (req, 
   }
 });
 // ✅ Reward History Route
-app.get('/reward-history', authenticate, async (req, res) => {
+app.get('/rewards/history', authenticate, async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select('rewardHistory');
     if (!user) return res.status(404).json({ success: false, message: "User not found" });
