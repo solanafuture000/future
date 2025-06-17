@@ -503,7 +503,7 @@ app.get('/rewards/history', authenticate, async (req, res) => {
 
     res.json({
       success: true,
-      history: (user.rewardHistory || []).reverse() // latest first
+      history: (user.rewardHistory || []).reverse()
     });
   } catch (err) {
     console.error("Reward history error:", err);
