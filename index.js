@@ -217,25 +217,6 @@ app.get('/profile', authenticate, async (req, res) => {
   const user = await User.findById(req.user.id).lean();
   if (!user) return res.status(404).json({ success: false, message: "User not found" });
 
-  // Ensure staking info is always included
-  const stakingAmount = user.staking?.amount || 0;
-
-  res.json({
-    user: {
-      username: user.username,
-      balance: user.balance,
-      staking: {
-        amount: stakingAmount,
-        startDate: user.staking?.startDate || null,
-        lastClaimed: user.staking?.lastClaimed || null
-      },
-      totalStaked: user.totalStaked || 0,
-      stakingReward: user.stakingReward || 0,
-      rewardHistory: user.rewardHistory || []
-    }
-  });
-});
-  // ✅ Send profile info with staking info
   res.json({
     success: true,
     user: {
@@ -244,8 +225,9 @@ app.get('/profile', authenticate, async (req, res) => {
       balance: user.balance,
       referralReward: user.referralReward || 0,
       stakingReward: user.stakingReward || 0,
+      totalStaked: user.totalStaked || 0,
       solanaWallet: user.solanaWallet,
-      referredBy: user.referredBy,
+      referredBy: user.referredBy || null,
       kyc: {
         status: user.kyc?.status || "not_started",
         imagePath: user.kyc?.imagePath || null,
@@ -258,7 +240,8 @@ app.get('/profile', authenticate, async (req, res) => {
         amount: user.staking?.amount || 0,
         startDate: user.staking?.startDate || null,
         lastClaimed: user.staking?.lastClaimed || null
-      }
+      },
+      rewardHistory: user.rewardHistory || []
     }
   });
 });
