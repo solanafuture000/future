@@ -163,6 +163,7 @@ app.post('/register', async (req, res) => {
 });
 
 // ✅ Referral History API
+// GET /referrals
 app.get('/referrals', async (req, res) => {
   const token = req.headers.authorization?.split(" ")[1];
   if (!token) return res.status(401).json({ success: false, message: "Unauthorized" });
@@ -174,24 +175,18 @@ app.get('/referrals', async (req, res) => {
 
     const referredUsers = await User.find({ referredBy: user._id });
 
-    let totalReferralReward = 0;
-    const referralHistory = referredUsers.map(r => {
-      const reward = r.kyc?.status === 'verified' ? 0.01 : 0;
-      if (reward > 0) totalReferralReward += reward;
+    const referralHistory = referredUsers.map(r => ({
+      username: r.username,
+      email: r.email,
+      kycStatus: r.kyc?.status || 'pending',
+      reward: r.kyc?.status === 'verified' ? 0.01 : 0
+    }));
 
-      return {
-        username: r.username,
-        email: r.email,
-        kycStatus: r.kyc?.status || 'pending',
-        reward
-      };
-    });
+    const totalReferralReward = referralHistory
+      .filter(r => r.kycStatus === 'verified')
+      .reduce((acc, r) => acc + r.reward, 0);
 
-    res.json({
-      success: true,
-      referrals: referralHistory,
-      totalReferralReward
-    });
+    res.json({ success: true, referrals: referralHistory, totalReferralReward });
   } catch (err) {
     console.error("Referral fetch error:", err);
     res.status(500).json({ success: false, message: "Server error" });
