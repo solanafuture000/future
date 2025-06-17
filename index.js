@@ -542,6 +542,19 @@ app.get('/rewards/history', authenticate, async (req, res) => {
     res.status(500).json({ success: false, message: "Failed to load reward history" });
   }
 });
+// ✅ GET all active staking entries
+app.get('/staking/active', authenticate, async (req, res) => {
+  const user = await User.findById(req.user.id);
+  if (!user) return res.status(404).json({ message: "User not found" });
+
+  const activeStakes = (user.stakingEntries || []).filter(s => !s.isUnstaked);
+
+  res.json({
+    success: true,
+    total: activeStakes.length,
+    activeStakes
+  });
+});
 
 
 const PORT = process.env.PORT || 3005;
