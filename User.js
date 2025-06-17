@@ -32,7 +32,11 @@ const userSchema = new mongoose.Schema({
   // ✅ KYC Information
   kyc: {
     imagePath: String,
-    status: { type: String, default: "not_started" },
+    status: {
+      type: String,
+      enum: ['not_submitted', 'pending', 'approved', 'rejected'],
+      default: 'not_submitted'
+    },
     submittedAt: Date,
     verifiedAt: Date,
     verificationStartedAt: Date,
