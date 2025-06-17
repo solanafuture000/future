@@ -68,6 +68,20 @@ const approveKYC = async (req, res) => {
     res.status(500).json({ message: '❌ Server error during approval' });
   }
 };
+// KYC VERIFY ENDPOINT or logic ke andar yeh lagao:
+if (user.kyc.status === 'verified' && user.referredBy) {
+  const referrer = await User.findById(user.referredBy);
+  if (referrer) {
+    const referralEntry = referrer.referrals.find(r => r.username === user.username);
+
+    if (referralEntry && !referralEntry.rewarded) {
+      referrer.balance += 0.01;
+      referralEntry.rewarded = true;
+      await referrer.save();
+    }
+  }
+}
+
 
 module.exports = {
   submitKYC,
