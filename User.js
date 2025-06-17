@@ -1,5 +1,14 @@
 const mongoose = require('mongoose');
 
+const stakingEntrySchema = new mongoose.Schema({
+  amount: { type: Number, required: true },
+  startDate: { type: Date, default: Date.now },
+  lastClaimed: { type: Date, default: Date.now },
+  isUnstaked: { type: Boolean, default: false },
+  unstakedAt: { type: Date, default: null },
+  rewardEarned: { type: Number, default: 0 }
+});
+
 const userSchema = new mongoose.Schema({
   // ✅ Basic Info
   username: { type: String, required: true },
@@ -56,14 +65,10 @@ const userSchema = new mongoose.Schema({
     }
   ],
 
-  // ✅ Staking Info
-  staking: {
-    amount: { type: Number, default: 0 },
-    startDate: Date,
-    lastClaimed: Date
-  },
+  // ✅ NEW: Multiple Staking Entries
+  stakingEntries: [stakingEntrySchema],
   stakingReward: { type: Number, default: 0 },
-  totalStaked: { type: Number, default: 0 }, // ✅ NEW FIELD
+  totalStaked: { type: Number, default: 0 },
 
   // ✅ Admin Logs
   adminLogs: [
