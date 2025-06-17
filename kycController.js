@@ -46,19 +46,26 @@ const approveKYC = async (req, res) => {
     user.kyc.verifiedAt = new Date();
     await user.save();
 
-    // ✅ Referral reward
-    if (user.referrer) {
-      const referrer = await User.findById(user.referrer);
+    // ✅ Referral reward on first successful KYC
+    if (user.referredBy) {
+      const referrer = await User.findById(user.referredBy);
       if (referrer) {
-        referrer.balance += 0.01;
-        referrer.boostPercent = (referrer.boostPercent || 0) + 5;
-        referrer.rewardHistory.push({
-          type: 'Referral Reward',
-          amount: 0.01,
-          date: new Date(),
-          status: 'Success'
-        });
-        await referrer.save();
+        const referralEntry = referrer.referrals.find(r => r.username === user.username);
+        if (referralEntry && !referralEntry.rewarded) {
+          referrer.balance += 0.01;
+          referrer.boostPercent = (referrer.boostPercent || 0) + 5;
+
+          referralEntry.rewarded = true;
+
+          referrer.rewardHistory.push({
+            type: 'Referral Reward (KYC)',
+            amount: 0.01,
+            date: new Date(),
+            status: 'Success'
+          });
+
+          await referrer.save();
+        }
       }
     }
 
@@ -68,20 +75,6 @@ const approveKYC = async (req, res) => {
     res.status(500).json({ message: '❌ Server error during approval' });
   }
 };
-// KYC VERIFY ENDPOINT or logic ke andar yeh lagao:
-if (user.kyc.status === 'verified' && user.referredBy) {
-  const referrer = await User.findById(user.referredBy);
-  if (referrer) {
-    const referralEntry = referrer.referrals.find(r => r.username === user.username);
-
-    if (referralEntry && !referralEntry.rewarded) {
-      referrer.balance += 0.01;
-      referralEntry.rewarded = true;
-      await referrer.save();
-    }
-  }
-}
-
 
 module.exports = {
   submitKYC,
