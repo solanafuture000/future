@@ -30,29 +30,29 @@ const userSchema = new mongoose.Schema({
   // ✅ KYC Information
   kyc: {
     imagePath: String,
-    status: { type: String, default: "not_started" }, // not_started, pending, verified, failed, rejected
+    status: { type: String, default: "not_started" },
     submittedAt: Date,
     verifiedAt: Date,
     verificationStartedAt: Date,
     retryAfter: Date,
     approvedByAdmin: { type: Boolean, default: false },
-    reviewedBy: String, // Admin username or ID
+    reviewedBy: String,
     reviewedAt: Date
   },
 
-  // ✅ Mining Info (includes sessionStart for 3-hour mining persistence)
+  // ✅ Mining Info
   mining: {
     lastClaimed: { type: Date, default: new Date(0) },
-    sessionStart: { type: Date, default: null } // 🔥 NEW FIELD
+    sessionStart: { type: Date, default: null }
   },
 
-  // ✅ Reward & Transaction History
+  // ✅ Reward History
   rewardHistory: [
     {
       date: { type: Date, default: Date.now },
-      type: { type: String, required: true },       // e.g. 'Mining', 'Deposit', 'Withdrawal', 'Staking'
+      type: { type: String, required: true },
       amount: { type: Number, required: true },
-      status: { type: String, default: "Success" }   // Success, Pending, Rejected
+      status: { type: String, default: "Success" }
     }
   ],
 
@@ -63,18 +63,19 @@ const userSchema = new mongoose.Schema({
     lastClaimed: Date
   },
   stakingReward: { type: Number, default: 0 },
+  totalStaked: { type: Number, default: 0 }, // ✅ NEW FIELD
 
-  // ✅ Admin Logs (for actions taken on this user)
+  // ✅ Admin Logs
   adminLogs: [
     {
-      action: String,              // e.g. 'KYC Approved', 'KYC Rejected'
-      performedBy: String,         // admin ID or name
+      action: String,
+      performedBy: String,
       date: { type: Date, default: Date.now },
       reason: String
     }
   ],
 
-  // ✅ Account Creation Date
+  // ✅ Account Created
   createdAt: { type: Date, default: Date.now }
 });
 
