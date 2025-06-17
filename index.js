@@ -160,7 +160,37 @@ app.post('/register', async (req, res) => {
     console.error(err);
     res.status(500).json({ success: false, message: 'Server error' });
   }
-});// ✅ Leaderboard Route (Fixed)
+});
+
+// ✅ Referral History API
+app.get('/referrals', async (req, res) => {
+  const token = req.headers.authorization?.split(" ")[1];
+  if (!token) return res.status(401).json({ success: false, message: "Unauthorized" });
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secretKey');
+
+    const user = await User.findById(decoded.id);
+    if (!user) return res.status(404).json({ success: false, message: "User not found" });
+
+    // Find users who were referred by this user
+    const referredUsers = await User.find({ referredBy: user._id });
+
+    const referralHistory = referredUsers.map(r => ({
+      username: r.username,
+      email: r.email,
+      registeredAt: r.createdAt, // Optional
+      reward: 0.01 // Adjust if needed
+    }));
+
+    res.json({ success: true, referrals: referralHistory });
+  } catch (err) {
+    console.error("Referral fetch error:", err);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+});
+
+// ✅ Leaderboard Route (Fixed)
 app.get('/leaderboard', async (req, res) => {
   try {
     const topUsers = await User.find({})
