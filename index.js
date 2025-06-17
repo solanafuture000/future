@@ -253,7 +253,7 @@ app.get('/profile', authenticate, async (req, res) => {
     }
   }
 
-  // ✅ Send profile info
+  // ✅ Send profile info with staking info
   res.json({
     success: true,
     user: {
@@ -271,10 +271,16 @@ app.get('/profile', authenticate, async (req, res) => {
         verifiedAt: user.kyc?.verifiedAt || null,
         verificationStartedAt: user.kyc?.verificationStartedAt || null,
         retryAfter: user.kyc?.retryAfter || null
+      },
+      staking: {
+        amount: user.staking?.amount || 0,
+        startDate: user.staking?.startDate || null,
+        lastClaimed: user.staking?.lastClaimed || null
       }
     }
   });
 });
+
 // WITHDRAW
 app.post('/withdraw', authenticate, async (req, res) => {
   try {
