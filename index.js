@@ -420,20 +420,28 @@ app.post('/mine/claim', authenticate, async (req, res) => {
     if (!user) return res.status(404).json({ message: 'User not found' });
 
     const now = new Date();
+    const sessionStart = user.mining.sessionStart;
     const lastClaim = user.mining.lastClaimed || new Date(0);
-    const maxMiningDurationMs = 3 * 60 * 60 * 1000; // 3 hours
-    const diffMs = now - lastClaim;
-    const eligibleMs = Math.min(diffMs, maxMiningDurationMs);
 
-    if (eligibleMs <= 0) {
-      return res.status(400).json({ message: 'No mining reward available yet.' });
+    if (!sessionStart) {
+      return res.status(400).json({ message: 'Mining session not started.' });
     }
 
-    // 🔹 Base reward per ms
-    const rewardPerMs = 0.00025 / maxMiningDurationMs;
-    let reward = rewardPerMs * eligibleMs;
+    const elapsedMs = now - sessionStart;
+    const maxMiningDurationMs = 3 * 60 * 60 * 1000; // 3 hours
 
-    // 🔹 Boost based on verified referrals
+    if (elapsedMs < maxMiningDurationMs) {
+      const remaining = ((maxMiningDurationMs - elapsedMs) / 1000 / 60).toFixed(1);
+      return res.status(400).json({
+        message: `You need to mine for full 3 hours. ${remaining} minutes remaining.`
+      });
+    }
+
+    // ✅ Base reward calculation
+    const rewardPerMs = 0.00025 / maxMiningDurationMs;
+    const reward = rewardPerMs * maxMiningDurationMs;
+
+    // ✅ Boost logic: verified referrals
     const verifiedReferrals = await User.find({
       username: { $in: user.referrals.map(r => r.username) },
       'kyc.status': 'verified',
@@ -443,19 +451,18 @@ app.post('/mine/claim', authenticate, async (req, res) => {
     const boostPercent = 0.05 * verifiedReferrals.length; // 5% per verified referral
     const boostedReward = reward * boostPercent;
 
-    // Total reward = base + boost
     const totalReward = reward + boostedReward;
 
-    // 🔹 Update upline bonuses (0.01 SOL only when referral KYC verified — handled elsewhere)
-
-    // 🔹 Update user's balance and mining
+    // ✅ Update user data
     user.balance += totalReward;
     user.mining.lastClaimed = now;
+    user.mining.sessionStart = null; // Reset session after claiming
 
     user.rewardHistory.push({
       date: now,
       type: 'Mining',
-      amount: totalReward
+      amount: totalReward,
+      status: 'Success'
     });
 
     await user.save();
