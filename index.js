@@ -326,16 +326,22 @@ app.post('/withdraw', authenticate, async (req, res) => {
   }
 });
 ﻿
-// ✅ Stake Route
+// ✅ Stake Route - Minimum 0.1 SOL, 4% reward
 app.post('/stake', authenticate, async (req, res) => {
   const { amount } = req.body;
-  if (!amount || amount < 0.5) return res.status(400).json({ success: false, message: "Minimum stake is 0.5 SOL" });
+
+  if (!amount || amount < 0.1) {
+    return res.status(400).json({ success: false, message: "Minimum stake is 0.1 SOL" });
+  }
 
   const user = await User.findById(req.user.id);
   if (!user) return res.status(404).json({ success: false, message: "User not found" });
 
-  if (user.balance < amount) return res.status(400).json({ success: false, message: "Insufficient balance" });
+  if (user.balance < amount) {
+    return res.status(400).json({ success: false, message: "Insufficient balance" });
+  }
 
+  // Deduct and initialize staking
   user.balance -= amount;
   user.staking = {
     amount: amount,
@@ -343,19 +349,21 @@ app.post('/stake', authenticate, async (req, res) => {
     lastClaimed: new Date()
   };
 
+  user.totalStaked = (user.totalStaked || 0) + amount;
+
   user.rewardHistory.push({
     type: 'Stake Start',
-    amount: amount,
-    date: new Date(),
-    status: 'Success'
+    amount,
+    status: 'Success',
+    date: new Date()
   });
 
   await user.save();
 
-  res.json({ success: true, message: "Staked successfully", staking: user.staking });
+  res.json({ success: true, message: "✅ Staking started. You can claim daily 4% reward. Unstake allowed after 7 days." });
 });
 
-// ✅ Claim Staking Rewards
+// ✅ Claim 4% Staking Rewards once per day
 app.post('/stake/claim', authenticate, async (req, res) => {
   const user = await User.findById(req.user.id);
   if (!user) return res.status(404).json({ message: 'User not found' });
@@ -366,13 +374,17 @@ app.post('/stake/claim', authenticate, async (req, res) => {
 
   const now = new Date();
   const lastClaimed = new Date(user.staking.lastClaimed);
-  const diffDays = Math.floor((now - lastClaimed) / (1000 * 60 * 60 * 24));
-  if (diffDays < 1) return res.status(400).json({ message: 'Claim allowed only once per day' });
+  const hoursDiff = (now - lastClaimed) / (1000 * 60 * 60);
 
-  const reward = user.staking.amount * 0.02 * diffDays;
+  if (hoursDiff < 24) {
+    return res.status(400).json({ message: '⏱️ Claim allowed once every 24 hours' });
+  }
+
+  const reward = user.staking.amount * 0.04; // 4% daily reward
 
   user.balance += reward;
   user.staking.lastClaimed = now;
+  user.stakingReward = (user.stakingReward || 0) + reward;
 
   user.rewardHistory.push({
     date: now,
@@ -382,42 +394,44 @@ app.post('/stake/claim', authenticate, async (req, res) => {
   });
 
   await user.save();
-  res.json({ message: `Claimed ${reward.toFixed(4)} SOL`, newBalance: user.balance });
+  res.json({ message: `✅ Claimed ${reward.toFixed(4)} SOL`, newBalance: user.balance });
 });
-// ✅ Unstake Route
+// ✅ Unstake Route (allowed only after 7 days)
 app.post('/unstake', authenticate, async (req, res) => {
   const user = await User.findById(req.user.id);
-  if (!user || !user.staking?.amount) return res.status(400).json({ success: false, message: "No staking found" });
+  if (!user) return res.status(404).json({ message: 'User not found' });
+
+  if (!user.staking || user.staking.amount === 0) {
+    return res.status(400).json({ message: 'You have no active stake' });
+  }
 
   const now = new Date();
   const startDate = new Date(user.staking.startDate);
   const daysStaked = Math.floor((now - startDate) / (1000 * 60 * 60 * 24));
 
-  let reward = 0;
-  let message = 'Unstaked successfully';
-
-  if (daysStaked >= 30) {
-    reward = user.staking.amount * 0.05;
-    message = 'Unstaked after 30 days. Full reward granted.';
-  } else if (daysStaked >= 7) {
-    reward = user.staking.amount * 0.03;
-    message = 'Unstaked after 7 days. Partial reward granted.';
-  } else {
-    message = 'Unstaked before 7 days — reward forfeited';
+  if (daysStaked < 7) {
+    return res.status(400).json({ message: '❌ You can unstake only after 7 days of staking' });
   }
 
-  user.balance += user.staking.amount + reward;
-  user.staking = { amount: 0, startDate: null, lastClaimed: null };
+  const stakedAmount = user.staking.amount;
+
+  // Reset staking
+  user.balance += stakedAmount;
+  user.staking = {
+    amount: 0,
+    startDate: null,
+    lastClaimed: null
+  };
 
   user.rewardHistory.push({
     type: 'Unstake',
-    amount: reward,
-    status: reward > 0 ? 'Success' : 'Forfeited',
-    date: now
+    amount: stakedAmount,
+    date: new Date(),
+    status: 'Success'
   });
 
   await user.save();
-  res.json({ success: true, message, rewardGiven: reward });
+  res.json({ success: true, message: `✅ Unstaked ${stakedAmount} SOL. Your balance is updated.` });
 });
 // MINING REWARD CLAIM (Updated with Boost Logic)
 app.post('/mine/claim', authenticate, async (req, res) => {
