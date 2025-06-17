@@ -326,10 +326,9 @@ app.post('/withdraw', authenticate, async (req, res) => {
   }
 });
 ﻿
-// ✅ Stake Route - 0.1 SOL min, 4% reward, 30-day plan
+// ✅ Stake Route - Multiple staking entries
 app.post('/stake', authenticate, async (req, res) => {
   const { amount } = req.body;
-
   if (!amount || amount < 0.1) {
     return res.status(400).json({ success: false, message: "Minimum stake is 0.1 SOL" });
   }
@@ -341,28 +340,31 @@ app.post('/stake', authenticate, async (req, res) => {
     return res.status(400).json({ success: false, message: "Insufficient balance" });
   }
 
+  // ✅ Deduct balance
   user.balance -= amount;
 
+  // ✅ Add to stakingEntries array
   user.stakingEntries.push({
     amount,
     startDate: new Date(),
-    lastClaimed: new Date()
+    lastClaimed: new Date(),
+    rewardEarned: 0,
+    isUnstaked: false
   });
 
   user.totalStaked += amount;
 
+  // ✅ Log in reward history
   user.rewardHistory.push({
     type: 'Stake Start',
     amount,
-    date: new Date(),
-    status: 'Success'
+    status: 'Success',
+    date: new Date()
   });
 
   await user.save();
-  res.json({
-    success: true,
-    message: `✅ You have successfully staked ${amount} SOL. You can claim 4% daily reward.`
-  });
+
+  res.json({ success: true, message: "✅ Staking started." });
 });
 
 // ✅ Claim Daily Staking Rewards (4%) for All Active Stakes
@@ -407,36 +409,38 @@ app.post('/stake/claim', authenticate, async (req, res) => {
 });
 // ✅ Unstake Route - Only after 7 days
 app.post('/unstake', authenticate, async (req, res) => {
-  const { index } = req.body; // index of the staking entry to unstake
   const user = await User.findById(req.user.id);
   if (!user) return res.status(404).json({ message: 'User not found' });
 
-  const entry = user.stakingEntries[index];
-  if (!entry || entry.isUnstaked) {
-    return res.status(400).json({ message: 'Invalid or already unstaked entry.' });
-  }
-
   const now = new Date();
-  const startDate = new Date(entry.startDate);
-  const daysStaked = Math.floor((now - startDate) / (1000 * 60 * 60 * 24));
 
-  if (daysStaked < 7) {
-    return res.status(400).json({ message: '❌ You can unstake only after 7 days' });
-  }
+  let unstakedCount = 0;
+  user.stakingEntries.forEach(entry => {
+    if (!entry.isUnstaked) {
+      const days = (now - new Date(entry.startDate)) / (1000 * 60 * 60 * 24);
+      if (days >= 7) {
+        entry.isUnstaked = true;
+        entry.unstakedAt = now;
+        user.balance += entry.amount;
 
-  entry.isUnstaked = true;
-  entry.unstakedAt = now;
-  user.balance += entry.amount;
+        user.rewardHistory.push({
+          type: 'Unstake',
+          amount: entry.amount,
+          status: 'Success',
+          date: now
+        });
 
-  user.rewardHistory.push({
-    type: 'Unstake',
-    amount: entry.amount,
-    date: now,
-    status: 'Success'
+        unstakedCount++;
+      }
+    }
   });
 
+  if (unstakedCount === 0) {
+    return res.status(400).json({ message: "❌ No stake eligible for unstaking (7 days required)" });
+  }
+
   await user.save();
-  res.json({ success: true, message: `✅ Unstaked ${entry.amount} SOL successfully.` });
+  res.json({ success: true, message: `✅ ${unstakedCount} stake(s) unstaked successfully.` });
 });
 // MINING REWARD CLAIM (Updated with Boost Logic)
 app.post('/mine/claim', authenticate, async (req, res) => {
@@ -547,14 +551,14 @@ app.get('/staking/active', authenticate, async (req, res) => {
   const user = await User.findById(req.user.id);
   if (!user) return res.status(404).json({ message: "User not found" });
 
-  const activeStakes = (user.stakingEntries || []).filter(s => !s.isUnstaked);
+  const activeStakes = user.stakingEntries.filter(s => !s.isUnstaked);
 
   res.json({
     success: true,
-    total: activeStakes.length,
-    activeStakes
+    stakes: activeStakes
   });
 });
+
 
 
 const PORT = process.env.PORT || 3005;
