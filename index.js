@@ -169,21 +169,29 @@ app.get('/referrals', async (req, res) => {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secretKey');
-
     const user = await User.findById(decoded.id);
     if (!user) return res.status(404).json({ success: false, message: "User not found" });
 
-    // Find users who were referred by this user
     const referredUsers = await User.find({ referredBy: user._id });
 
-    const referralHistory = referredUsers.map(r => ({
-      username: r.username,
-      email: r.email,
-      registeredAt: r.createdAt, // Optional
-      reward: 0.01 // Adjust if needed
-    }));
+    let totalReferralReward = 0;
+    const referralHistory = referredUsers.map(r => {
+      const reward = r.kyc?.status === 'verified' ? 0.01 : 0;
+      if (reward > 0) totalReferralReward += reward;
 
-    res.json({ success: true, referrals: referralHistory });
+      return {
+        username: r.username,
+        email: r.email,
+        kycStatus: r.kyc?.status || 'pending',
+        reward
+      };
+    });
+
+    res.json({
+      success: true,
+      referrals: referralHistory,
+      totalReferralReward
+    });
   } catch (err) {
     console.error("Referral fetch error:", err);
     res.status(500).json({ success: false, message: "Server error" });
