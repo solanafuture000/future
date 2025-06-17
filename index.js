@@ -415,34 +415,36 @@ app.post('/unstake', authenticate, async (req, res) => {
   if (!user) return res.status(404).json({ message: 'User not found' });
 
   const now = new Date();
+  let unstakedAmount = 0;
 
-  let unstakedCount = 0;
   user.stakingEntries.forEach(entry => {
-    if (!entry.isUnstaked) {
-      const days = (now - new Date(entry.startDate)) / (1000 * 60 * 60 * 24);
-      if (days >= 7) {
-        entry.isUnstaked = true;
-        entry.unstakedAt = now;
-        user.balance += entry.amount;
+    const days = (now - new Date(entry.startDate)) / (1000 * 60 * 60 * 24);
+    if (!entry.isUnstaked && days >= 7) {
+      entry.isUnstaked = true;
+      entry.unstakedAt = now;
+      user.balance += entry.amount;
+      unstakedAmount += entry.amount;
 
-        user.rewardHistory.push({
-          type: 'Unstake',
-          amount: entry.amount,
-          status: 'Success',
-          date: now
-        });
-
-        unstakedCount++;
-      }
+      user.rewardHistory.push({
+        type: 'Unstake',
+        amount: entry.amount,
+        date: now,
+        status: 'Success'
+      });
     }
   });
 
-  if (unstakedCount === 0) {
-    return res.status(400).json({ message: "❌ No stake eligible for unstaking (7 days required)" });
+  if (unstakedAmount === 0) {
+    return res.status(400).json({ message: '❌ No stake available for unstaking yet (wait 7 days)' });
   }
 
   await user.save();
-  res.json({ success: true, message: `✅ ${unstakedCount} stake(s) unstaked successfully.` });
+
+  return res.json({
+    success: true,
+    message: `✅ Successfully unstaked ${unstakedAmount} SOL.`,
+    newBalance: user.balance
+  });
 });
 // MINING REWARD CLAIM (Updated with Boost Logic)
 app.post('/mine/claim', authenticate, async (req, res) => {
@@ -561,6 +563,18 @@ app.get('/staking/active', authenticate, async (req, res) => {
   });
 });
 
+app.get('/unstake/list', authenticate, async (req, res) => {
+  const user = await User.findById(req.user.id);
+  if (!user) return res.status(404).json({ message: "User not found" });
+
+  // Get only active stakes
+  const activeStakes = user.stakingEntries.filter(entry => !entry.isUnstaked);
+
+  res.json({
+    success: true,
+    stakes: activeStakes
+  });
+});
 
 
 const PORT = process.env.PORT || 3005;
