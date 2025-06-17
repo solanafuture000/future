@@ -57,16 +57,17 @@ const userSchema = new mongoose.Schema({
   ],
 
   // ✅ Staking Entries - Multiple allowed
-  stakingEntries: [
-    {
-      amount: { type: Number, required: true },
-      startDate: { type: Date, required: true },
-      lastClaimed: { type: Date, required: true },
-      rewardEarned: { type: Number, default: 0 },
-      isUnstaked: { type: Boolean, default: false },
-      unstakedAt: Date
-    }
-  ],
+stakingEntries: [
+  {
+    amount: Number,
+    startDate: Date,
+    lastClaimed: Date,
+    rewardEarned: { type: Number, default: 0 },
+    isUnstaked: { type: Boolean, default: false },
+    unstakedAt: Date
+  }
+]
+
 
   stakingReward: { type: Number, default: 0 },
   totalStaked: { type: Number, default: 0 },
