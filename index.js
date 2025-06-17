@@ -214,45 +214,27 @@ app.post('/login', async (req, res) => {
 });
 
 app.get('/profile', authenticate, async (req, res) => {
-  const user = await User.findById(req.user.id);
+  const user = await User.findById(req.user.id).lean();
   if (!user) return res.status(404).json({ success: false, message: "User not found" });
 
-  // ✅ Check staking status
-  if (user.staking && user.staking.amount > 0 && user.staking.startDate) {
-    const now = new Date();
-    const lastClaimed = new Date(user.staking.lastClaimed || user.staking.startDate);
-    const hoursPassed = (now - lastClaimed) / (1000 * 60 * 60);
+  // Ensure staking info is always included
+  const stakingAmount = user.staking?.amount || 0;
 
-    if (hoursPassed >= 24) {
-      const daysStaked = (now - new Date(user.staking.startDate)) / (1000 * 60 * 60 * 24);
-
-      let dailyPercent = 0;
-      if (daysStaked >= 30) {
-        dailyPercent = 5;
-      } else if (daysStaked >= 7) {
-        dailyPercent = 3;
-      }
-
-      if (dailyPercent > 0) {
-        const rewardAmount = (user.staking.amount * dailyPercent) / 100;
-
-        // Update user
-        user.balance += rewardAmount;
-        user.stakingReward = (user.stakingReward || 0) + rewardAmount;
-        user.staking.lastClaimed = now;
-
-        user.rewardHistory.push({
-          type: 'Staking Reward',
-          amount: rewardAmount,
-          date: now,
-          status: 'Success'
-        });
-
-        await user.save();
-      }
+  res.json({
+    user: {
+      username: user.username,
+      balance: user.balance,
+      staking: {
+        amount: stakingAmount,
+        startDate: user.staking?.startDate || null,
+        lastClaimed: user.staking?.lastClaimed || null
+      },
+      totalStaked: user.totalStaked || 0,
+      stakingReward: user.stakingReward || 0,
+      rewardHistory: user.rewardHistory || []
     }
-  }
-
+  });
+});
   // ✅ Send profile info with staking info
   res.json({
     success: true,
