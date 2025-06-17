@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const { Schema } = mongoose;
 
 const userSchema = new mongoose.Schema({
   // ✅ Basic Info
@@ -19,7 +20,8 @@ const userSchema = new mongoose.Schema({
   isAdmin: { type: Boolean, default: false },
 
   // ✅ Referral System
-  referredBy: { type: String, default: null },
+  referredBy: { type: Schema.Types.ObjectId, ref: 'User', default: null },
+  referralRewardClaimed: { type: Boolean, default: false },
   referrals: [
     {
       username: String,
