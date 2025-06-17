@@ -40,9 +40,10 @@ const userSchema = new mongoose.Schema({
     reviewedAt: Date
   },
 
-  // ✅ Mining Info
+  // ✅ Mining Info (includes sessionStart for 3-hour mining persistence)
   mining: {
-    lastClaimed: { type: Date, default: new Date(0) }
+    lastClaimed: { type: Date, default: new Date(0) },
+    sessionStart: { type: Date, default: null } // 🔥 NEW FIELD
   },
 
   // ✅ Reward & Transaction History
@@ -55,7 +56,7 @@ const userSchema = new mongoose.Schema({
     }
   ],
 
-  // ✅ Staking Info (Improved)
+  // ✅ Staking Info
   staking: {
     amount: { type: Number, default: 0 },
     startDate: Date,
