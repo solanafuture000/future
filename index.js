@@ -11,12 +11,11 @@ const path = require('path');
 const fs = require('fs');
 const nodemailer = require('nodemailer');
 const kycController = require('./kycController');
-const WithdrawRequest = require('./models/withdrawRequest');
+const WithdrawRequest = require('./withdrawRequest');
 const User = require('./User');
 const kycRoutes = require('./kycRoutes');
 const adminRoutes = require('./adminRoutes');
 const authenticate = require('./authenticate');
-
 
 const app = express();
 
@@ -30,69 +29,68 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
-app.options('*', cors(corsOptions)); // ✅ VERY IMPORTANT
-
+app.options('*', cors(corsOptions));
 
 app.use('/api', kycRoutes); // Now all KYC endpoints work under /api
 app.use(express.json());
 app.use('/uploads', express.static('uploads'));
 app.use('/admin', adminRoutes);
-app.use(express.static(path.join(__dirname, 'public')))
-
+app.use(express.static(path.join(__dirname, 'public')));
 
 const transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
-    }
+  service: 'gmail',
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
+  }
 });
 
 async function sendWelcomeEmail(toEmail, username) {
-    const mailOptions = {
-        from: process.env.EMAIL_USER,
-        to: toEmail,
-        subject: 'Welcome to Solana Mining App',
-        text: `Hello ${username},\n\nThank you for registering in our Solana Mining App!`
-    };
-    try {
-        await transporter.sendMail(mailOptions);
-        console.log('✅ Email sent to:', toEmail);
-    } catch (error) {
-        console.error('❌ Email error:', error);
-    }
+  const mailOptions = {
+    from: process.env.EMAIL_USER,
+    to: toEmail,
+    subject: 'Welcome to Solana Mining App',
+    text: `Hello ${username},\n\nThank you for registering in our Solana Mining App!`
+  };
+  try {
+    await transporter.sendMail(mailOptions);
+    console.log('✅ Email sent to:', toEmail);
+  } catch (error) {
+    console.error('❌ Email error:', error);
+  }
 }
+
 mongoose.connect(process.env.MONGO_URI, {
-    dbName: 'soldatabase',
+  dbName: 'soldatabase',
 }).then(() => {
-    console.log('✅ MongoDB connected');
+  console.log('✅ MongoDB connected');
 }).catch(err => console.error('❌ MongoDB error:', err));
 
 const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        const dir = './uploads';
-        if (!fs.existsSync(dir)) fs.mkdirSync(dir);
-        cb(null, dir);
-    },
-    filename: (req, file, cb) => {
-        cb(null, Date.now() + path.extname(file.originalname));
-    }
+  destination: (req, file, cb) => {
+    const dir = './uploads';
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir);
+    cb(null, dir);
+  },
+  filename: (req, file, cb) => {
+    cb(null, Date.now() + path.extname(file.originalname));
+  }
 });
 const upload = multer({ storage });
 
 async function getUplineUsers(username, levels = 10) {
-    let uplines = [];
-    let currentUser = await User.findOne({ username });
-    for (let i = 0; i < levels; i++) {
-        if (!currentUser || !currentUser.referredBy) break;
-        const uplineUser = await User.findOne({ username: currentUser.referredBy });
-        if (!uplineUser) break;
-        uplines.push(uplineUser);
-        currentUser = uplineUser;
-    }
-    return uplines;
+  let uplines = [];
+  let currentUser = await User.findOne({ username });
+  for (let i = 0; i < levels; i++) {
+    if (!currentUser || !currentUser.referredBy) break;
+    const uplineUser = await User.findOne({ username: currentUser.referredBy });
+    if (!uplineUser) break;
+    uplines.push(uplineUser);
+    currentUser = uplineUser;
+  }
+  return uplines;
 }
-// ✅ REGISTER
+
 // ✅ REGISTER Route
 app.post('/register', async (req, res) => {
   try {
@@ -104,7 +102,6 @@ app.post('/register', async (req, res) => {
     username = username.trim();
     email = email.trim();
 
-    // ✅ Check for existing email or username
     const existingEmail = await User.findOne({ email });
     if (existingEmail)
       return res.status(400).json({ success: false, message: 'Email already exists' });
@@ -113,10 +110,9 @@ app.post('/register', async (req, res) => {
     if (existingUsername)
       return res.status(400).json({ success: false, message: 'Username already exists' });
 
-    // ✅ Hash password, create wallet, generate email token
     const hashed = await bcrypt.hash(password, 10);
     const wallet = Keypair.generate();
-    const emailToken = crypto.randomBytes(32).toString('hex');
+    const emailToken = require('crypto').randomBytes(32).toString('hex');
 
     const newUser = new User({
       username,
@@ -135,7 +131,6 @@ app.post('/register', async (req, res) => {
       emailToken
     });
 
-    // ✅ Referral logic
     if (referredBy) {
       const referrer = await User.findOne({ username: referredBy.trim() });
       if (referrer) {
@@ -145,10 +140,8 @@ app.post('/register', async (req, res) => {
       }
     }
 
-    // ✅ Save new user
     await newUser.save();
 
-    // ✅ Send verification email
     const verifyUrl = `https://solana-future-24bf1.web.app/verify.html?token=${emailToken}`;
     await transporter.sendMail({
       from: `Solana App <${process.env.EMAIL_USER}>`,
@@ -168,6 +161,7 @@ app.post('/register', async (req, res) => {
   }
 });
 
+// ✅ Referrals Route
 app.get('/referrals', authenticate, async (req, res) => {
   try {
     const user = await User.findById(req.user.id).lean();
@@ -176,11 +170,7 @@ app.get('/referrals', authenticate, async (req, res) => {
     const referrals = user.referrals || [];
 
     const formattedReferrals = await Promise.all(referrals.map(async ref => {
-      if (!ref.username) {
-        console.log("⚠️ Skipping null referral entry:", ref);
-        return null;
-      }
-
+      if (!ref.username) return null;
       const referredUser = await User.findOne({ username: ref.username }).lean();
       const kycStatus = referredUser?.kyc?.status || 'not_submitted';
       const reward = kycStatus === 'approved' ? 0.01 : 0;
@@ -195,32 +185,11 @@ app.get('/referrals', authenticate, async (req, res) => {
     res.json({ success: true, referrals: formattedReferrals.filter(Boolean) });
 
   } catch (err) {
-    console.error("🔥 Referral route error:", err); // 🔥 ADD THIS LINE
+    console.error("🔥 Referral route error:", err);
     res.status(500).json({ success: false, message: "Server error loading referrals" });
   }
 });
 
-
-
-    // ✅ Send verification email
-    const verifyUrl = `https://solana-future-24bf1.web.app/verify-email?token=${emailToken}`;
-    await transporter.sendMail({
-      from: `Solana App <${process.env.EMAIL_USER}>`,
-      to: email,
-      subject: 'Verify your email',
-      html: `<p>Hi ${username},</p><p>Please verify your email by clicking the link below:</p><a href="${verifyUrl}">${verifyUrl}</a>`
-    });
-
-    res.status(201).json({
-      success: true,
-      message: 'Registered successfully. Please verify your email before login.'
-    });
-
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ success: false, message: 'Server error' });
-  }
-});
 // ✅ Email Verification Endpoint
 app.get('/verify-email', async (req, res) => {
   try {
@@ -233,7 +202,6 @@ app.get('/verify-email', async (req, res) => {
     user.emailToken = undefined;
     await user.save();
 
-    // 🔁 Redirect user to your frontend verify page
     res.redirect('https://solana-future-24bf1.web.app/verify.html');
   } catch (err) {
     console.error(err);
