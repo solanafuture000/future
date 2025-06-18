@@ -90,8 +90,18 @@ const userSchema = new mongoose.Schema({
 
   // ✅ Email Verification
   isVerified: { type: Boolean, default: false },
-  emailToken: String,     // for link-based
-  emailCode: String,      // for 8-digit code verification
+  emailToken: String,
+  emailCode: String,
+
+  // ✅ Deposit History for Monitoring
+  depositHistory: [
+    {
+      txId: String,
+      amount: Number,
+      sender: String,
+      receivedAt: Date
+    }
+  ],
 
   // ✅ Account Created
   createdAt: { type: Date, default: Date.now }
