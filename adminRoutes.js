@@ -2,8 +2,9 @@ const express = require('express');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
 const User = require('./User');
+const WithdrawRequest = require('./models/withdrawRequest'); // ✅ Make sure this path is correct
 
-// ✅ Middleware: Authenticate user from JWT
+// ✅ Authenticate middleware
 const authenticate = (req, res, next) => {
   const token = req.headers.authorization?.split(" ")[1];
   if (!token) return res.status(401).json({ message: "Unauthorized" });
@@ -12,15 +13,21 @@ const authenticate = (req, res, next) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secretKey');
     req.user = decoded;
     next();
-  } catch (err) {
+  } catch {
     return res.status(401).json({ message: "Invalid token" });
   }
 };
 
-// ✅ Withdraw schema ke liye WithdrawRequest model import karo
-const WithdrawRequest = require('./models/withdrawRequest'); // Make sure path sahi ho
+// ✅ Admin check middleware
+const isAdmin = async (req, res, next) => {
+  const user = await User.findById(req.user.id);
+  if (!user || user.email !== 'admin@solana.com') {
+    return res.status(403).json({ message: "Admin access required" });
+  }
+  next();
+};
 
-// ✅ GET all pending withdraw requests
+// ✅ Withdraw: Get all pending
 router.get('/withdraw-requests', authenticate, isAdmin, async (req, res) => {
   try {
     const requests = await WithdrawRequest.find({ status: 'pending' }).populate('user', 'username email solanaWallet');
@@ -31,7 +38,7 @@ router.get('/withdraw-requests', authenticate, isAdmin, async (req, res) => {
   }
 });
 
-// ✅ Approve withdraw request
+// ✅ Withdraw: Approve
 router.post('/withdraw-approve/:id', authenticate, isAdmin, async (req, res) => {
   try {
     const request = await WithdrawRequest.findById(req.params.id).populate('user');
@@ -42,8 +49,6 @@ router.post('/withdraw-approve/:id', authenticate, isAdmin, async (req, res) => 
     request.processedAt = new Date();
     await request.save();
 
-    // NOTE: Yahan Solana wallet transfer logic bhi lagaya ja sakta hai.
-
     res.json({ success: true, message: '✅ Withdraw approved' });
   } catch (err) {
     console.error('Withdraw approve error:', err);
@@ -51,7 +56,7 @@ router.post('/withdraw-approve/:id', authenticate, isAdmin, async (req, res) => 
   }
 });
 
-// ✅ Reject withdraw request
+// ✅ Withdraw: Reject
 router.post('/withdraw-reject/:id', authenticate, isAdmin, async (req, res) => {
   try {
     const request = await WithdrawRequest.findById(req.params.id);
@@ -69,16 +74,7 @@ router.post('/withdraw-reject/:id', authenticate, isAdmin, async (req, res) => {
   }
 });
 
-// ✅ Middleware: Check if user is admin
-const isAdmin = async (req, res, next) => {
-  const user = await User.findById(req.user.id);
-  if (!user || user.email !== 'admin@solana.com') {
-    return res.status(403).json({ message: "Admin access required" });
-  }
-  next();
-};
-
-// ✅ GET all users with deposit info
+// ✅ Users with balance and KYC info
 router.get('/deposits', authenticate, isAdmin, async (req, res) => {
   try {
     const users = await User.find({
@@ -93,24 +89,24 @@ router.get('/deposits', authenticate, isAdmin, async (req, res) => {
   }
 });
 
-// ✅ GET all KYC requests (pending)
+// ✅ KYC: Pending requests
 router.get('/kyc-requests', authenticate, isAdmin, async (req, res) => {
   try {
     const requests = await User.find({ 'kyc.status': 'pending' });
     res.json(requests);
-  } catch (error) {
-    console.error('Fetch KYC error:', error);
+  } catch (err) {
+    console.error('Fetch KYC error:', err);
     res.status(500).json({ message: 'Server error' });
   }
 });
 
-// ✅ Approve KYC
+// ✅ KYC: Approve
 router.post('/approve/:id', authenticate, isAdmin, async (req, res) => {
   try {
     const user = await User.findById(req.params.id);
     if (!user) return res.status(404).json({ message: 'User not found' });
 
-    user.kyc.status = 'approved'; // ✅ Fixed value
+    user.kyc.status = 'approved';
     user.kyc.verifiedAt = new Date();
     user.kyc.approvedByAdmin = true;
     await user.save();
@@ -122,7 +118,7 @@ router.post('/approve/:id', authenticate, isAdmin, async (req, res) => {
   }
 });
 
-// ✅ Reject KYC
+// ✅ KYC: Reject
 router.post('/reject/:id', authenticate, isAdmin, async (req, res) => {
   try {
     const user = await User.findById(req.params.id);
@@ -138,24 +134,21 @@ router.post('/reject/:id', authenticate, isAdmin, async (req, res) => {
   }
 });
 
-// ✅ GET Real Deposit History
+// ✅ Real Deposit History
 router.get('/deposit-history', authenticate, isAdmin, async (req, res) => {
   try {
     const users = await User.find({ 'depositHistory.0': { $exists: true } });
 
-    const history = [];
-    users.forEach(user => {
-      user.depositHistory.forEach(deposit => {
-        history.push({
-          username: user.username,
-          email: user.email,
-          wallet: user.solanaWallet?.publicKey || '',
-          txId: deposit.txId,
-          amount: deposit.amount,
-          receivedAt: deposit.receivedAt
-        });
-      });
-    });
+    const history = users.flatMap(user =>
+      user.depositHistory.map(deposit => ({
+        username: user.username,
+        email: user.email,
+        wallet: user.solanaWallet?.publicKey || '',
+        txId: deposit.txId,
+        amount: deposit.amount,
+        receivedAt: deposit.receivedAt
+      }))
+    );
 
     res.json({ success: true, history });
   } catch (err) {
