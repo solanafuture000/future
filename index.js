@@ -95,11 +95,9 @@ app.post('/register', async (req, res) => {
     if (!username || !email || !password)
       return res.status(400).json({ success: false, message: 'Please provide username, email and password' });
 
-    // Trim inputs
     username = username.trim();
     email = email.trim();
 
-    // Check existing users
     const existingEmail = await User.findOne({ email });
     if (existingEmail)
       return res.status(400).json({ success: false, message: 'Email already exists' });
@@ -110,6 +108,7 @@ app.post('/register', async (req, res) => {
 
     const hashed = await bcrypt.hash(password, 10);
     const wallet = Keypair.generate();
+    const emailToken = crypto.randomBytes(32).toString('hex');
 
     const newUser = new User({
       username,
@@ -123,14 +122,15 @@ app.post('/register', async (req, res) => {
       balance: 0,
       mining: { lastClaimed: new Date(0) },
       kyc: { status: 'pending' },
-      referrals: []
+      referrals: [],
+      isVerified: false,
+      emailToken
     });
 
-    // ✅ Check for valid referrer
     if (referredBy) {
       const referrer = await User.findOne({ username: referredBy.trim() });
       if (referrer) {
-        newUser.referredBy = referrer._id; // store ObjectId reference
+        newUser.referredBy = referrer._id;
         referrer.referrals.push({ username: newUser.username });
         await referrer.save();
       }
@@ -138,60 +138,44 @@ app.post('/register', async (req, res) => {
 
     await newUser.save();
 
-    // Optional: Send welcome email
-    await sendWelcomeEmail(email, username);
-
-    const token = jwt.sign(
-      { id: newUser._id, username: newUser.username },
-      process.env.JWT_SECRET || 'secretKey',
-      { expiresIn: '7d' }
-    );
+    // ✅ Send verification email
+    const verifyUrl = `https://solana-future-24bf1.web.app/verify-email?token=${emailToken}`;
+    await transporter.sendMail({
+      from: `Solana App <${process.env.EMAIL_USER}>`,
+      to: email,
+      subject: 'Verify your email',
+      html: `<p>Hi ${username},</p><p>Please verify your email by clicking the link below:</p><a href="${verifyUrl}">${verifyUrl}</a>`
+    });
 
     res.status(201).json({
       success: true,
-      message: 'Registered successfully',
-      token,
-      user: {
-        username: newUser.username,
-        email: newUser.email
-      }
+      message: 'Registered successfully. Please verify your email before login.'
     });
+
   } catch (err) {
     console.error(err);
     res.status(500).json({ success: false, message: 'Server error' });
   }
 });
-
-// ✅ Referral History API
-// GET /referrals
-app.get('/referrals', async (req, res) => {
-  const token = req.headers.authorization?.split(" ")[1];
-  if (!token) return res.status(401).json({ success: false, message: "Unauthorized" });
-
+// ✅ Email Verification Endpoint
+app.get('/verify-email', async (req, res) => {
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secretKey');
-    const user = await User.findById(decoded.id);
-    if (!user) return res.status(404).json({ success: false, message: "User not found" });
+    const { token } = req.query;
+    const user = await User.findOne({ emailToken: token });
 
-    const referredUsers = await User.find({ referredBy: user._id });
+    if (!user) return res.status(400).send('❌ Invalid or expired verification link.');
 
-    const referralHistory = referredUsers.map(r => ({
-      username: r.username,
-      email: r.email,
-      kycStatus: r.kyc?.status || 'pending',
-      reward: r.kyc?.status === 'verified' ? 0.01 : 0
-    }));
+    user.isVerified = true;
+    user.emailToken = undefined;
+    await user.save();
 
-    const totalReferralReward = referralHistory
-      .filter(r => r.kycStatus === 'verified')
-      .reduce((acc, r) => acc + r.reward, 0);
-
-    res.json({ success: true, referrals: referralHistory, totalReferralReward });
+    res.send('✅ Your email is verified! You can now login.');
   } catch (err) {
-    console.error("Referral fetch error:", err);
-    res.status(500).json({ success: false, message: "Server error" });
+    console.error(err);
+    res.status(500).send('❌ Verification failed. Try again later.');
   }
 });
+
 
 // ✅ Leaderboard Route (Fixed)
 app.get('/leaderboard', async (req, res) => {
@@ -219,6 +203,14 @@ app.post('/login', async (req, res) => {
     const user = await User.findOne({ email });
     if (!user)
       return res.status(404).json({ success: false, message: 'User not found' });
+
+    // ⛔ Check if email is verified
+    if (!user.isVerified) {
+      return res.status(403).json({
+        success: false,
+        message: 'Please verify your email before logging in.'
+      });
+    }
 
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch)
