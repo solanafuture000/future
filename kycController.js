@@ -82,12 +82,17 @@ const getKYCStatus = async (req, res) => {
     const user = await User.findById(req.user.id);
     if (!user) return res.status(404).json({ message: 'User not found' });
 
-    const { status, submittedAt, verifiedAt } = user.kyc || {};
+    const status = user.kyc?.status || 'not_submitted';
+    const submittedAt = user.kyc?.submittedAt || null;
+    const verifiedAt = user.kyc?.verifiedAt || null;
 
     res.json({
-      status: status || 'not-submitted',
-      submittedAt: submittedAt || null,
-      verifiedAt: verifiedAt || null
+      success: true,
+      kyc: {
+        status,
+        submittedAt,
+        verifiedAt
+      }
     });
   } catch (error) {
     console.error('KYC Status Error:', error);
@@ -98,5 +103,5 @@ const getKYCStatus = async (req, res) => {
 module.exports = {
   submitKYC,
   approveKYC,
-  getKYCStatus // ✅ Add this to exports
+  getKYCStatus
 };
