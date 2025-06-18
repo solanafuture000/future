@@ -62,7 +62,7 @@ const userSchema = new mongoose.Schema({
     }
   ],
 
-  // ✅ Staking Entries - Multiple allowed
+  // ✅ Staking Entries
   stakingEntries: [
     {
       amount: Number,
@@ -90,8 +90,8 @@ const userSchema = new mongoose.Schema({
 
   // ✅ Email Verification
   isVerified: { type: Boolean, default: false },
-  emailToken: String,
-  emailCode: String, // ✅ REQUIRED for code-based email verification
+  emailToken: String,     // for link-based
+  emailCode: String,      // for 8-digit code verification
 
   // ✅ Account Created
   createdAt: { type: Date, default: Date.now }
