@@ -608,7 +608,7 @@ app.get('/staking/active', authenticate, async (req, res) => {
   res.json({
     success: true,
     stakes: activeStakes
-  }
+ });
 });
 
 // ✅ RESEND CODE
