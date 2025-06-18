@@ -76,7 +76,27 @@ const approveKYC = async (req, res) => {
   }
 };
 
+// 🔹 Get current user's KYC status
+const getKYCStatus = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    const { status, submittedAt, verifiedAt } = user.kyc || {};
+
+    res.json({
+      status: status || 'not-submitted',
+      submittedAt: submittedAt || null,
+      verifiedAt: verifiedAt || null
+    });
+  } catch (error) {
+    console.error('KYC Status Error:', error);
+    res.status(500).json({ message: '❌ Failed to fetch KYC status' });
+  }
+};
+
 module.exports = {
   submitKYC,
-  approveKYC
+  approveKYC,
+  getKYCStatus // ✅ Add this to exports
 };
