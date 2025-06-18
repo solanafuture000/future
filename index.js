@@ -641,10 +641,6 @@ app.post('/resend-code', async (req, res) => {
   }
 });
 
-// TODO: Add your other routes here (register, login, verify-code, profile, etc.)
-
-app.listen(10000, () => console.log('🚀 Server running on port 10000'));
-
 
 app.get('/unstake/list', authenticate, async (req, res) => {
   const user = await User.findById(req.user.id);
