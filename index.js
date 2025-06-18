@@ -158,9 +158,14 @@ app.get('/referrals', authenticate, async (req, res) => {
     const referrals = user.referrals || [];
 
     const formattedReferrals = await Promise.all(referrals.map(async ref => {
+      if (!ref.username) {
+        console.log("⚠️ Skipping null referral entry:", ref);
+        return null;
+      }
+
       const referredUser = await User.findOne({ username: ref.username }).lean();
       const kycStatus = referredUser?.kyc?.status || 'not_submitted';
-      const reward = referredUser?.kyc?.status === 'approved' ? 0.01 : 0;
+      const reward = kycStatus === 'approved' ? 0.01 : 0;
 
       return {
         username: ref.username,
@@ -168,6 +173,14 @@ app.get('/referrals', authenticate, async (req, res) => {
         kycStatus
       };
     }));
+
+    res.json({ success: true, referrals: formattedReferrals.filter(Boolean) });
+
+  } catch (err) {
+    console.error("🔥 Referral route error:", err); // 🔥 ADD THIS LINE
+    res.status(500).json({ success: false, message: "Server error loading referrals" });
+  }
+});
 
 
 
