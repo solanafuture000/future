@@ -192,23 +192,18 @@ app.get('/referrals', authenticate, async (req, res) => {
 
 // ✅ Email Verification Endpoint
 app.get('/verify-email', async (req, res) => {
-  try {
-    const { token } = req.query;
-    const user = await User.findOne({ emailToken: token });
+  const { token } = req.query;
+  const user = await User.findOne({ emailToken: token });
 
-    if (!user) return res.status(400).send('❌ Invalid or expired verification link.');
+  if (!user) return res.status(400).send('❌ Invalid or expired verification link.');
 
-    user.isVerified = true;
-    user.emailToken = undefined;
-    await user.save();
+  user.isVerified = true;
+  user.emailToken = undefined;
+  await user.save();
 
-    res.redirect('https://solana-future-24bf1.web.app/verify.html');
-  } catch (err) {
-    console.error(err);
-    res.status(500).send('❌ Verification failed. Try again later.');
-  }
+  // ✅ Automatically redirect to dashboard after verification
+  res.redirect('https://solana-future-24bf1.web.app/dashboard.html');
 });
-
 
 
 // ✅ Leaderboard Route (Fixed)
