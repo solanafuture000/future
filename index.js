@@ -21,12 +21,17 @@ const authenticate = require('./authenticate');
 const app = express();
 
 // Enhanced CORS configuration
-app.use(cors({
-  origin: ['https://solana-future-24bf1.web.app'], // Your frontend URL
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+const corsOptions = {
+  origin: 'https://solana-future-24bf1.web.app',
+  methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
   allowedHeaders: ['Content-Type', 'Authorization'],
-  credentials: false
-}));
+  credentials: true,
+  optionsSuccessStatus: 200
+};
+
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions)); // ✅ VERY IMPORTANT
+
 
 app.use('/api', kycRoutes); // Now all KYC endpoints work under /api
 app.use(express.json());
