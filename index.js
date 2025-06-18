@@ -92,6 +92,10 @@ async function getUplineUsers(username, levels = 10) {
 }
 
 
+// Utility: generate 8-digit code
+function generateCode() {
+  return Math.floor(10000000 + Math.random() * 90000000).toString();
+}
 
 // ✅ Update register route to include code
 app.post('/register', async (req, res) => {
