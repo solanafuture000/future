@@ -296,37 +296,42 @@ app.post('/login', async (req, res) => {
 });
 
 app.get('/profile', authenticate, async (req, res) => {
-  const user = await User.findById(req.user.id).lean();
-  if (!user) return res.status(404).json({ success: false, message: "User not found" });
+  try {
+    const user = await User.findById(req.user.id).lean();
+    if (!user) return res.status(404).json({ success: false, message: "User not found" });
 
-  res.json({
-    success: true,
-    user: {
-      username: user.username,
-      email: user.email,
-      balance: user.balance,
-      referralReward: user.referralReward || 0,
-      stakingReward: user.stakingReward || 0,
-      totalStaked: user.totalStaked || 0,
-      solanaWallet: user.solanaWallet,
-      referredBy: user.referredBy || null,
-      referrals: user.referrals || [], // ✅ Added this line
-      kyc: {
-        status: user.kyc?.status || "not_started",
-        imagePath: user.kyc?.imagePath || null,
-        submittedAt: user.kyc?.submittedAt || null,
-        verifiedAt: user.kyc?.verifiedAt || null,
-        verificationStartedAt: user.kyc?.verificationStartedAt || null,
-        retryAfter: user.kyc?.retryAfter || null
-      },
-      staking: {
-        amount: user.staking?.amount || 0,
-        startDate: user.staking?.startDate || null,
-        lastClaimed: user.staking?.lastClaimed || null
-      },
-      rewardHistory: user.rewardHistory || []
-    }
-  });
+    res.json({
+      success: true,
+      user: {
+        username: user.username,
+        email: user.email,
+        balance: user.balance,
+        referralReward: user.referralReward || 0,
+        stakingReward: user.stakingReward || 0,
+        totalStaked: user.totalStaked || 0,
+        solanaWallet: user.solanaWallet,
+        referredBy: user.referredBy || null,
+        referrals: user.referrals || [],
+        kyc: {
+          status: user.kyc?.status || "not_submitted", // ✅ fixed default
+          imagePath: user.kyc?.imagePath || null,
+          submittedAt: user.kyc?.submittedAt || null,
+          verifiedAt: user.kyc?.verifiedAt || null,
+          verificationStartedAt: user.kyc?.verificationStartedAt || null,
+          retryAfter: user.kyc?.retryAfter || null
+        },
+        staking: {
+          amount: user.staking?.amount || 0,
+          startDate: user.staking?.startDate || null,
+          lastClaimed: user.staking?.lastClaimed || null
+        },
+        rewardHistory: user.rewardHistory || []
+      }
+    });
+  } catch (err) {
+    console.error("Profile route error:", err);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
 });
 
 // WITHDRAW
