@@ -92,7 +92,7 @@ async function getUplineUsers(username, levels = 10) {
     }
     return uplines;
 }
-// REGISTER
+// ✅ REGISTER
 app.post('/register', async (req, res) => {
   try {
     let { username, email, password, referredBy } = req.body;
@@ -113,7 +113,7 @@ app.post('/register', async (req, res) => {
 
     const hashed = await bcrypt.hash(password, 10);
     const wallet = Keypair.generate();
-    const emailToken = crypto.randomBytes(32).toString('hex');
+    const emailToken = crypto.randomBytes(32).toString('hex'); // ✅ DEFINED
 
     const newUser = new User({
       username,
@@ -121,7 +121,7 @@ app.post('/register', async (req, res) => {
       password: hashed,
       solanaWallet: {
         publicKey: wallet.publicKey.toString(),
-        secretKey: Buffer.from(wallet.secretKey).toString('base64'),
+        secretKey: Buffer.from(wallet.secretKey).toString('base64')
       },
       referredBy: null,
       balance: 0,
@@ -142,11 +142,24 @@ app.post('/register', async (req, res) => {
     }
 
     await newUser.save();
-    res.json({ success: true, referrals: formattedReferrals });
+
+    // ✅ CORRECT EMAIL SENDING BLOCK
+    const verifyUrl = `https://solana-future-24bf1.web.app/verify.html?token=${emailToken}`;
+    await transporter.sendMail({
+      from: `Solana App <${process.env.EMAIL_USER}>`,
+      to: email,
+      subject: 'Verify your email',
+      html: `<p>Hi ${username},</p><p>Please verify your email by clicking the link below:</p><a href="${verifyUrl}">${verifyUrl}</a>`
+    });
+
+    res.status(201).json({
+      success: true,
+      message: 'Registered successfully. Please verify your email before login.'
+    });
 
   } catch (err) {
-    console.error("Error loading referrals:", err);
-    res.status(500).json({ success: false, message: "Server error loading referrals" });
+    console.error('🔥 Registration Error:', err);
+    res.status(500).json({ success: false, message: 'Server error' });
   }
 });
 
