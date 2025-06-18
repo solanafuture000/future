@@ -25,6 +25,7 @@ const isAdmin = async (req, res, next) => {
   }
   next();
 };
+
 // ✅ GET all users with deposit info
 router.get('/deposits', authenticate, isAdmin, async (req, res) => {
   try {
@@ -39,7 +40,6 @@ router.get('/deposits', authenticate, isAdmin, async (req, res) => {
     res.status(500).json({ success: false, message: 'Server error' });
   }
 });
-
 
 // ✅ GET all KYC requests (pending)
 router.get('/kyc-requests', authenticate, isAdmin, async (req, res) => {
@@ -81,6 +81,29 @@ router.post('/reject/:id', authenticate, isAdmin, async (req, res) => {
     res.json({ success: true, message: '❌ KYC rejected' });
   } catch (err) {
     res.status(500).json({ message: 'Server error during rejection' });
+  }
+});
+
+// ✅ GET full deposit history
+router.get('/deposit-history', authenticate, isAdmin, async (req, res) => {
+  try {
+    const users = await User.find({ 'depositHistory.0': { $exists: true } });
+
+    const history = users.flatMap(user =>
+      user.depositHistory.map(entry => ({
+        username: user.username,
+        email: user.email,
+        wallet: user.solanaWallet?.publicKey || '-',
+        amount: entry.amount,
+        txId: entry.txId,
+        receivedAt: entry.receivedAt
+      }))
+    );
+
+    res.json({ success: true, history });
+  } catch (err) {
+    console.error("🔥 Error fetching deposit history:", err);
+    res.status(500).json({ success: false, message: 'Server error' });
   }
 });
 
