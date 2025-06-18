@@ -96,7 +96,6 @@ async function getUplineUsers(username, levels = 10) {
 app.post('/register', async (req, res) => {
   try {
     let { username, email, password, referredBy } = req.body;
-
     if (!username || !email || !password)
       return res.status(400).json({ success: false, message: 'Please provide username, email and password' });
 
@@ -113,7 +112,7 @@ app.post('/register', async (req, res) => {
 
     const hashed = await bcrypt.hash(password, 10);
     const wallet = Keypair.generate();
-    const emailToken = crypto.randomBytes(32).toString('hex'); // ✅ DEFINED
+    const emailToken = crypto.randomBytes(32).toString('hex');
 
     const newUser = new User({
       username,
@@ -143,7 +142,7 @@ app.post('/register', async (req, res) => {
 
     await newUser.save();
 
-    // ✅ CORRECT EMAIL SENDING BLOCK
+    // ✅ Email Send Block (INSIDE async)
     const verifyUrl = `https://solana-future-24bf1.web.app/verify.html?token=${emailToken}`;
     await transporter.sendMail({
       from: `Solana App <${process.env.EMAIL_USER}>`,
@@ -159,7 +158,7 @@ app.post('/register', async (req, res) => {
 
   } catch (err) {
     console.error('🔥 Registration Error:', err);
-    res.status(500).json({ success: false, message: 'Server error' });
+    res.status(500).json({ success: false, message: 'Server error during registration' });
   }
 });
 
