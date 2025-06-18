@@ -130,7 +130,7 @@ app.post('/register', async (req, res) => {
       referredBy: null,
       balance: 0,
       mining: { lastClaimed: new Date(0) },
-      kyc: { status: 'pending' },
+        kyc: { status: 'not_submitted' }, // ✅ Correct
       referrals: [],
       isVerified: false,
       emailCode
