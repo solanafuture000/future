@@ -91,11 +91,12 @@ async function getUplineUsers(username, levels = 10) {
   return uplines;
 }
 
-// ✅ REGISTER Route
+
+
+// ✅ Update register route to include code
 app.post('/register', async (req, res) => {
   try {
     let { username, email, password, referredBy } = req.body;
-
     if (!username || !email || !password)
       return res.status(400).json({ success: false, message: 'Please provide username, email and password' });
 
@@ -112,7 +113,7 @@ app.post('/register', async (req, res) => {
 
     const hashed = await bcrypt.hash(password, 10);
     const wallet = Keypair.generate();
-    const emailToken = require('crypto').randomBytes(32).toString('hex');
+    const emailCode = generateCode();
 
     const newUser = new User({
       username,
@@ -128,7 +129,7 @@ app.post('/register', async (req, res) => {
       kyc: { status: 'pending' },
       referrals: [],
       isVerified: false,
-      emailToken
+      emailCode
     });
 
     if (referredBy) {
@@ -142,22 +143,45 @@ app.post('/register', async (req, res) => {
 
     await newUser.save();
 
-    const verifyUrl = `https://solana-future-24bf1.web.app/verify.html?token=${emailToken}`;
     await transporter.sendMail({
       from: `Solana App <${process.env.EMAIL_USER}>`,
       to: email,
-      subject: 'Verify your email',
-      html: `<p>Hi ${username},</p><p>Please verify your email by clicking the link below:</p><a href="${verifyUrl}">${verifyUrl}</a>`
+      subject: 'Your Solana Verification Code',
+      html: `<p>Hi ${username},</p><p>Your verification code is: <b>${emailCode}</b></p>`
     });
 
-    res.status(201).json({
-      success: true,
-      message: 'Registered successfully. Please verify your email before login.'
-    });
-
+    res.status(201).json({ success: true, message: 'Registered. Please check your email for verification code.' });
   } catch (err) {
-    console.error('🔥 Registration Error:', err);
-    res.status(500).json({ success: false, message: 'Server error during registration' });
+    console.error('Register error:', err);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// ✅ POST /verify-code
+app.post('/verify-code', async (req, res) => {
+  try {
+    const { email, code } = req.body;
+    if (!email || !code)
+      return res.status(400).json({ success: false, message: 'Email and code required' });
+
+    const user = await User.findOne({ email });
+    if (!user)
+      return res.status(404).json({ success: false, message: 'User not found' });
+
+    if (user.isVerified)
+      return res.status(400).json({ success: false, message: 'User already verified' });
+
+    if (user.emailCode !== code)
+      return res.status(400).json({ success: false, message: 'Invalid verification code' });
+
+    user.isVerified = true;
+    user.emailCode = undefined;
+    await user.save();
+
+    res.json({ success: true, message: 'Verification successful' });
+  } catch (err) {
+    console.error('Verify error:', err);
+    res.status(500).json({ success: false, message: 'Server error' });
   }
 });
 
