@@ -608,8 +608,43 @@ app.get('/staking/active', authenticate, async (req, res) => {
   res.json({
     success: true,
     stakes: activeStakes
-  });
+  }
 });
+
+// ✅ RESEND CODE
+app.post('/resend-code', async (req, res) => {
+  try {
+    const { email } = req.body;
+    const user = await User.findOne({ email });
+
+    if (!user)
+      return res.status(404).json({ success: false, message: 'User not found' });
+
+    if (user.isVerified)
+      return res.status(400).json({ success: false, message: 'User is already verified' });
+
+    const newCode = Math.floor(10000000 + Math.random() * 90000000).toString();
+    user.emailCode = newCode;
+    await user.save();
+
+    await transporter.sendMail({
+      from: `Solana App <${process.env.EMAIL_USER}>`,
+      to: email,
+      subject: 'Your New Verification Code',
+      html: `<p>Your new verification code is: <b>${newCode}</b></p>`
+    });
+
+    res.json({ success: true, message: 'New code sent to email' });
+  } catch (err) {
+    console.error('Resend code error:', err);
+    res.status(500).json({ success: false, message: 'Server error while resending code' });
+  }
+});
+
+// TODO: Add your other routes here (register, login, verify-code, profile, etc.)
+
+app.listen(10000, () => console.log('🚀 Server running on port 10000'));
+
 
 app.get('/unstake/list', authenticate, async (req, res) => {
   const user = await User.findById(req.user.id);
