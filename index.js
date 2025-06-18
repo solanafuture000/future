@@ -137,6 +137,33 @@ app.post('/register', async (req, res) => {
     }
 
     await newUser.save();
+app.get('/referrals', authenticate, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).lean();
+    if (!user) return res.status(404).json({ success: false, message: "User not found" });
+
+    const referrals = user.referrals || [];
+
+    const formattedReferrals = await Promise.all(referrals.map(async ref => {
+      const referredUser = await User.findOne({ username: ref.username }).lean();
+      const kycStatus = referredUser?.kyc?.status || 'not_submitted';
+      const reward = referredUser?.kyc?.status === 'approved' ? 0.01 : 0;
+
+      return {
+        username: ref.username,
+        reward,
+        kycStatus
+      };
+    }));
+
+    res.json({ success: true, referrals: formattedReferrals });
+
+  } catch (err) {
+    console.error("Error loading referrals:", err);
+    res.status(500).json({ success: false, message: "Server error loading referrals" });
+  }
+});
+
 
     // ✅ Send verification email
     const verifyUrl = `https://solana-future-24bf1.web.app/verify-email?token=${emailToken}`;
