@@ -17,6 +17,58 @@ const authenticate = (req, res, next) => {
   }
 };
 
+// ✅ Withdraw schema ke liye WithdrawRequest model import karo
+const WithdrawRequest = require('./models/withdrawRequest'); // Make sure path sahi ho
+
+// ✅ GET all pending withdraw requests
+router.get('/withdraw-requests', authenticate, isAdmin, async (req, res) => {
+  try {
+    const requests = await WithdrawRequest.find({ status: 'pending' }).populate('user', 'username email solanaWallet');
+    res.json({ success: true, requests });
+  } catch (err) {
+    console.error('Withdraw fetch error:', err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// ✅ Approve withdraw request
+router.post('/withdraw-approve/:id', authenticate, isAdmin, async (req, res) => {
+  try {
+    const request = await WithdrawRequest.findById(req.params.id).populate('user');
+    if (!request) return res.status(404).json({ message: 'Withdraw request not found' });
+    if (request.status !== 'pending') return res.status(400).json({ message: 'Already processed' });
+
+    request.status = 'approved';
+    request.processedAt = new Date();
+    await request.save();
+
+    // NOTE: Yahan Solana wallet transfer logic bhi lagaya ja sakta hai.
+
+    res.json({ success: true, message: '✅ Withdraw approved' });
+  } catch (err) {
+    console.error('Withdraw approve error:', err);
+    res.status(500).json({ message: 'Server error during approval' });
+  }
+});
+
+// ✅ Reject withdraw request
+router.post('/withdraw-reject/:id', authenticate, isAdmin, async (req, res) => {
+  try {
+    const request = await WithdrawRequest.findById(req.params.id);
+    if (!request) return res.status(404).json({ message: 'Withdraw request not found' });
+    if (request.status !== 'pending') return res.status(400).json({ message: 'Already processed' });
+
+    request.status = 'rejected';
+    request.processedAt = new Date();
+    await request.save();
+
+    res.json({ success: true, message: '❌ Withdraw rejected' });
+  } catch (err) {
+    console.error('Withdraw reject error:', err);
+    res.status(500).json({ message: 'Server error during rejection' });
+  }
+});
+
 // ✅ Middleware: Check if user is admin
 const isAdmin = async (req, res, next) => {
   const user = await User.findById(req.user.id);
