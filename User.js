@@ -88,12 +88,13 @@ const userSchema = new mongoose.Schema({
     }
   ],
 
+  // ✅ Email Verification
+  isVerified: { type: Boolean, default: false },
+  emailToken: String,
+
   // ✅ Account Created
   createdAt: { type: Date, default: Date.now }
 });
-isVerified: { type: Boolean, default: false },
-emailToken: String,
-
 
 const User = mongoose.model('User', userSchema);
 module.exports = User;
