@@ -28,11 +28,15 @@ const isAdmin = async (req, res, next) => {
 // ✅ GET all users with deposit info
 router.get('/deposits', authenticate, isAdmin, async (req, res) => {
   try {
-    const users = await User.find({}, 'username email solanaWallet balance lastDeposit').sort({ balance: -1 });
+    const users = await User.find({
+      balance: { $gt: 0 },
+      'kyc.status': { $in: ['pending', 'approved'] }
+    });
+
     res.json({ success: true, users });
-  } catch (error) {
-    console.error('🔥 Error loading admin deposits:', error);
-    res.status(500).json({ success: false, message: 'Server error loading deposits' });
+  } catch (err) {
+    console.error('Fetch deposits error:', err);
+    res.status(500).json({ success: false, message: 'Server error' });
   }
 });
 
