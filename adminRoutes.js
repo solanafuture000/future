@@ -58,7 +58,7 @@ router.post('/approve/:id', authenticate, isAdmin, async (req, res) => {
     const user = await User.findById(req.params.id);
     if (!user) return res.status(404).json({ message: 'User not found' });
 
-    user.kyc.status = 'approved'; // ✅ Fix: should be 'approved' not 'verified'
+    user.kyc.status = 'approved'; // ✅ Fixed value
     user.kyc.verifiedAt = new Date();
     user.kyc.approvedByAdmin = true;
     await user.save();
@@ -83,6 +83,32 @@ router.post('/reject/:id', authenticate, isAdmin, async (req, res) => {
   } catch (err) {
     console.error("Reject KYC Error:", err);
     res.status(500).json({ message: 'Server error during rejection' });
+  }
+});
+
+// ✅ GET Real Deposit History
+router.get('/deposit-history', authenticate, isAdmin, async (req, res) => {
+  try {
+    const users = await User.find({ 'depositHistory.0': { $exists: true } });
+
+    const history = [];
+    users.forEach(user => {
+      user.depositHistory.forEach(deposit => {
+        history.push({
+          username: user.username,
+          email: user.email,
+          wallet: user.solanaWallet?.publicKey || '',
+          txId: deposit.txId,
+          amount: deposit.amount,
+          receivedAt: deposit.receivedAt
+        });
+      });
+    });
+
+    res.json({ success: true, history });
+  } catch (err) {
+    console.error("Deposit History Error:", err);
+    res.status(500).json({ success: false, message: 'Server error fetching history' });
   }
 });
 
