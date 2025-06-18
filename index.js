@@ -255,6 +255,7 @@ app.get('/profile', authenticate, async (req, res) => {
       totalStaked: user.totalStaked || 0,
       solanaWallet: user.solanaWallet,
       referredBy: user.referredBy || null,
+      referrals: user.referrals || [], // ✅ Added this line
       kyc: {
         status: user.kyc?.status || "not_started",
         imagePath: user.kyc?.imagePath || null,
