@@ -169,12 +169,14 @@ app.get('/verify-email', async (req, res) => {
     user.emailToken = undefined;
     await user.save();
 
-    res.send('✅ Your email is verified! You can now login.');
+    // 🔁 Redirect user to your frontend verify page
+    res.redirect('https://solana-future-24bf1.web.app/verify.html');
   } catch (err) {
     console.error(err);
     res.status(500).send('❌ Verification failed. Try again later.');
   }
 });
+
 
 
 // ✅ Leaderboard Route (Fixed)
