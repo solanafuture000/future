@@ -91,6 +91,7 @@ const userSchema = new mongoose.Schema({
   // ✅ Email Verification
   isVerified: { type: Boolean, default: false },
   emailToken: String,
+  emailCode: String, // ✅ REQUIRED for code-based email verification
 
   // ✅ Account Created
   createdAt: { type: Date, default: Date.now }
