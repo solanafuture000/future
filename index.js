@@ -93,15 +93,18 @@ async function getUplineUsers(username, levels = 10) {
     return uplines;
 }
 // ✅ REGISTER
+// ✅ REGISTER Route
 app.post('/register', async (req, res) => {
   try {
     let { username, email, password, referredBy } = req.body;
+
     if (!username || !email || !password)
       return res.status(400).json({ success: false, message: 'Please provide username, email and password' });
 
     username = username.trim();
     email = email.trim();
 
+    // ✅ Check for existing email or username
     const existingEmail = await User.findOne({ email });
     if (existingEmail)
       return res.status(400).json({ success: false, message: 'Email already exists' });
@@ -110,6 +113,7 @@ app.post('/register', async (req, res) => {
     if (existingUsername)
       return res.status(400).json({ success: false, message: 'Username already exists' });
 
+    // ✅ Hash password, create wallet, generate email token
     const hashed = await bcrypt.hash(password, 10);
     const wallet = Keypair.generate();
     const emailToken = crypto.randomBytes(32).toString('hex');
@@ -131,6 +135,7 @@ app.post('/register', async (req, res) => {
       emailToken
     });
 
+    // ✅ Referral logic
     if (referredBy) {
       const referrer = await User.findOne({ username: referredBy.trim() });
       if (referrer) {
@@ -140,9 +145,10 @@ app.post('/register', async (req, res) => {
       }
     }
 
+    // ✅ Save new user
     await newUser.save();
 
-    // ✅ Email Send Block (INSIDE async)
+    // ✅ Send verification email
     const verifyUrl = `https://solana-future-24bf1.web.app/verify.html?token=${emailToken}`;
     await transporter.sendMail({
       from: `Solana App <${process.env.EMAIL_USER}>`,
