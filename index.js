@@ -137,6 +137,14 @@ app.post('/register', async (req, res) => {
     }
 
     await newUser.save();
+    res.json({ success: true, referrals: formattedReferrals });
+
+  } catch (err) {
+    console.error("Error loading referrals:", err);
+    res.status(500).json({ success: false, message: "Server error loading referrals" });
+  }
+});
+
 app.get('/referrals', authenticate, async (req, res) => {
   try {
     const user = await User.findById(req.user.id).lean();
@@ -156,13 +164,6 @@ app.get('/referrals', authenticate, async (req, res) => {
       };
     }));
 
-    res.json({ success: true, referrals: formattedReferrals });
-
-  } catch (err) {
-    console.error("Error loading referrals:", err);
-    res.status(500).json({ success: false, message: "Server error loading referrals" });
-  }
-});
 
 
     // ✅ Send verification email
