@@ -27,6 +27,37 @@ const isAdmin = async (req, res, next) => {
   next();
 };
 
+// ✅ Admin - Update Balance by Wallet Address
+router.post('/admin/update-balance', authenticate, isAdmin, async (req, res) => {
+  try {
+    const { address, amount } = req.body;
+
+    if (!address || !amount) {
+      return res.status(400).json({ message: 'Wallet address and amount are required' });
+    }
+
+    const user = await User.findOne({ 'solanaWallet.publicKey': address });
+    if (!user) return res.status(404).json({ message: 'User not found for this wallet address' });
+
+    user.balance += parseFloat(amount);
+
+    user.rewardHistory.push({
+      type: 'Admin Balance Update',
+      amount: parseFloat(amount),
+      status: 'Success',
+      date: new Date()
+    });
+
+    await user.save();
+
+    res.json({ success: true, message: `✅ ${amount} SOL added to ${user.username}'s balance.` });
+  } catch (err) {
+    console.error("Admin balance update error:", err);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+
 // ✅ Withdraw - Get All Pending
 router.get('/withdraw-requests', authenticate, isAdmin, async (req, res) => {
   try {
