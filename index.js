@@ -334,7 +334,7 @@ app.get('/profile', authenticate, async (req, res) => {
   }
 });
 
-// WITHDRAW
+// ✅ WITHDRAW Route (Updated)
 app.post('/withdraw', authenticate, async (req, res) => {
   try {
     const { amount, address } = req.body;
@@ -343,7 +343,8 @@ app.post('/withdraw', authenticate, async (req, res) => {
     if (!user || !user.solanaWallet?.publicKey)
       return res.status(400).json({ message: 'Invalid user or wallet' });
 
-    if (user.kyc.status !== 'verified')
+    // ✅ Fix: Check for 'approved' instead of 'verified'
+    if (user.kyc.status !== 'approved')
       return res.status(400).json({ message: 'KYC not verified' });
 
     const withdrawAmount = parseFloat(amount);
@@ -358,17 +359,19 @@ app.post('/withdraw', authenticate, async (req, res) => {
     user.rewardHistory.push({
       date: new Date(),
       type: 'Withdrawal',
-      amount: withdrawAmount
+      amount: withdrawAmount,
+      status: 'Pending'
     });
 
     await user.save();
 
     const request = new WithdrawRequest({
-      userId: user._id,
+      user: user._id, // ✅ corrected field name (user, not userId)
       walletAddress: address,
       amount: withdrawAmount,
       status: 'pending'
     });
+
     await request.save();
 
     res.json({ success: true, message: 'Withdrawal request submitted.' });
