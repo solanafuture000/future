@@ -13,6 +13,9 @@ const userSchema = new mongoose.Schema({
     secretKey: { type: String, required: true }
   },
 
+firstStakeRewarded: { type: Boolean, default: false },
+
+
   // ✅ Main Balance
   balance: { type: Number, default: 0 },
 
