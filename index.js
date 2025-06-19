@@ -300,20 +300,33 @@ app.get('/profile', authenticate, async (req, res) => {
     const user = await User.findById(req.user.id).lean();
     if (!user) return res.status(404).json({ success: false, message: "User not found" });
 
+    // 🧠 Calculate referral reward total
+    const referralReward = (user.rewardHistory || [])
+      .filter(r => r.type.includes("Referral") && r.status === "Success")
+      .reduce((sum, r) => sum + r.amount, 0);
+
+    // 🧠 Calculate staking reward total
+    const stakingReward = (user.rewardHistory || [])
+      .filter(r => r.type.includes("Staking") && r.status === "Success")
+      .reduce((sum, r) => sum + r.amount, 0);
+
     res.json({
       success: true,
       user: {
         username: user.username,
         email: user.email,
         balance: user.balance,
-        referralReward: user.referralReward || 0,
-        stakingReward: user.stakingReward || 0,
+        referralReward: parseFloat(referralReward.toFixed(5)),
+        stakingReward: parseFloat(stakingReward.toFixed(5)),
         totalStaked: user.totalStaked || 0,
-        solanaWallet: user.solanaWallet,
+        solanaWallet: {
+          publicKey: user.solanaWallet?.publicKey || ""
+          // ❌ secretKey intentionally removed for security
+        },
         referredBy: user.referredBy || null,
         referrals: user.referrals || [],
         kyc: {
-          status: user.kyc?.status || "not_submitted", // ✅ fixed default
+          status: user.kyc?.status || "not_submitted",
           imagePath: user.kyc?.imagePath || null,
           submittedAt: user.kyc?.submittedAt || null,
           verifiedAt: user.kyc?.verifiedAt || null,
@@ -321,9 +334,10 @@ app.get('/profile', authenticate, async (req, res) => {
           retryAfter: user.kyc?.retryAfter || null
         },
         staking: {
-          amount: user.staking?.amount || 0,
-          startDate: user.staking?.startDate || null,
-          lastClaimed: user.staking?.lastClaimed || null
+          entries: user.stakingEntries || [],
+          summary: {
+            totalStaked: user.totalStaked || 0
+          }
         },
         rewardHistory: user.rewardHistory || []
       }
