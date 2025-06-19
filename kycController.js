@@ -1,6 +1,7 @@
 const fs = require('fs');
 const User = require('./User');
 
+// ✅ KYC Submit Controller
 const submitKYC = async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
@@ -30,6 +31,7 @@ const submitKYC = async (req, res) => {
   }
 };
 
+// ✅ KYC Approve Controller (with Referral Reward Fix)
 const approveKYC = async (req, res) => {
   try {
     const { userId } = req.params;
@@ -42,23 +44,31 @@ const approveKYC = async (req, res) => {
 
     user.kyc.status = 'approved';
     user.kyc.verifiedAt = new Date();
+    user.kyc.approvedByAdmin = true;
     await user.save();
 
-    // ✅ First-time referral KYC reward
+    // ✅ Give referral reward only once
     if (user.referredBy) {
       const referrer = await User.findById(user.referredBy);
       if (referrer) {
-        const referralEntry = referrer.referrals.find(r => r.username === user.username);
-        if (referralEntry && !referralEntry.rewarded) {
-          referrer.balance += 0.01;
-          referralEntry.rewarded = true;
+        const referralEntry = referrer.referrals.find(
+          r => r.username === user.username && !r.rewarded
+        );
 
+        if (referralEntry) {
+          // 💰 Reward the referrer
+          referrer.balance += 0.01;
+
+          // 📜 Log the reward
           referrer.rewardHistory.push({
             type: 'Referral Reward (KYC)',
             amount: 0.01,
             date: new Date(),
             status: 'Success'
           });
+
+          // ✅ Mark referral as rewarded
+          referralEntry.rewarded = true;
 
           await referrer.save();
         }
@@ -72,6 +82,7 @@ const approveKYC = async (req, res) => {
   }
 };
 
+// ✅ KYC Status Checker
 const getKYCStatus = async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
