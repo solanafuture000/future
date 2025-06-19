@@ -190,6 +190,38 @@ router.post('/reject/:id', authenticate, isAdmin, async (req, res) => {
   }
 });
 
+// POST /admin/topup
+app.post('/admin/topup', async (req, res) => {
+  try {
+    const { wallet, amount } = req.body;
+
+    if (!wallet || !amount || isNaN(amount)) {
+      return res.status(400).json({ success: false, message: 'Wallet and valid amount required.' });
+    }
+
+    const user = await User.findOne({ 'solanaWallet.publicKey': wallet.trim() });
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found for given wallet address.' });
+    }
+
+    user.balance += parseFloat(amount);
+    user.rewardHistory.push({
+      type: 'Admin Top-Up',
+      amount: parseFloat(amount),
+      status: 'Success',
+      date: new Date()
+    });
+
+    await user.save();
+    res.json({ success: true, message: `✅ ${amount} SOL added to ${user.username}'s balance.` });
+
+  } catch (err) {
+    console.error('Top-up error:', err);
+    res.status(500).json({ success: false, message: '❌ Server error while topping up balance' });
+  }
+});
+
+
 // ✅ Deposit History
 router.get('/deposit-history', authenticate, isAdmin, async (req, res) => {
   try {
