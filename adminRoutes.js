@@ -2,9 +2,9 @@ const express = require('express');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
 const User = require('./User');
-const WithdrawRequest = require('./models/withdrawRequest'); // ✅ Make sure this path is correct
+const WithdrawRequest = require('./models/withdrawRequest');
 
-// ✅ Authenticate middleware
+// ✅ Authenticate Middleware
 const authenticate = (req, res, next) => {
   const token = req.headers.authorization?.split(" ")[1];
   if (!token) return res.status(401).json({ message: "Unauthorized" });
@@ -18,7 +18,7 @@ const authenticate = (req, res, next) => {
   }
 };
 
-// ✅ Admin check middleware
+// ✅ Admin Middleware
 const isAdmin = async (req, res, next) => {
   const user = await User.findById(req.user.id);
   if (!user || user.email !== 'admin@solana.com') {
@@ -27,7 +27,7 @@ const isAdmin = async (req, res, next) => {
   next();
 };
 
-// ✅ Withdraw: Get all pending
+// ✅ Withdraw - Get All Pending
 router.get('/withdraw-requests', authenticate, isAdmin, async (req, res) => {
   try {
     const requests = await WithdrawRequest.find({ status: 'pending' }).populate('user', 'username email solanaWallet');
@@ -38,16 +38,28 @@ router.get('/withdraw-requests', authenticate, isAdmin, async (req, res) => {
   }
 });
 
-// ✅ Withdraw: Approve
+// ✅ Withdraw - Approve
 router.post('/withdraw-approve/:id', authenticate, isAdmin, async (req, res) => {
   try {
     const request = await WithdrawRequest.findById(req.params.id).populate('user');
     if (!request) return res.status(404).json({ message: 'Withdraw request not found' });
     if (request.status !== 'pending') return res.status(400).json({ message: 'Already processed' });
 
+    // Mark WithdrawRequest
     request.status = 'approved';
     request.processedAt = new Date();
     await request.save();
+
+    // Update reward history status to 'Success'
+    const user = request.user;
+    const reward = user.rewardHistory.find(r => 
+      r.type === 'Withdrawal' &&
+      r.amount === request.amount &&
+      r.status === 'Pending'
+    );
+
+    if (reward) reward.status = 'Success';
+    await user.save();
 
     res.json({ success: true, message: '✅ Withdraw approved' });
   } catch (err) {
@@ -56,10 +68,10 @@ router.post('/withdraw-approve/:id', authenticate, isAdmin, async (req, res) => 
   }
 });
 
-// ✅ Withdraw: Reject
+// ✅ Withdraw - Reject
 router.post('/withdraw-reject/:id', authenticate, isAdmin, async (req, res) => {
   try {
-    const request = await WithdrawRequest.findById(req.params.id);
+    const request = await WithdrawRequest.findById(req.params.id).populate('user');
     if (!request) return res.status(404).json({ message: 'Withdraw request not found' });
     if (request.status !== 'pending') return res.status(400).json({ message: 'Already processed' });
 
@@ -67,21 +79,34 @@ router.post('/withdraw-reject/:id', authenticate, isAdmin, async (req, res) => {
     request.processedAt = new Date();
     await request.save();
 
-    res.json({ success: true, message: '❌ Withdraw rejected' });
+    // Refund balance
+    const user = request.user;
+    user.balance += request.amount;
+
+    // Update reward status
+    const reward = user.rewardHistory.find(r =>
+      r.type === 'Withdrawal' &&
+      r.amount === request.amount &&
+      r.status === 'Pending'
+    );
+    if (reward) reward.status = 'Rejected';
+
+    await user.save();
+
+    res.json({ success: true, message: '❌ Withdraw rejected and refunded' });
   } catch (err) {
     console.error('Withdraw reject error:', err);
     res.status(500).json({ message: 'Server error during rejection' });
   }
 });
 
-// ✅ Users with balance and KYC info
+// ✅ Deposits
 router.get('/deposits', authenticate, isAdmin, async (req, res) => {
   try {
     const users = await User.find({
       balance: { $gt: 0 },
       'kyc.status': { $in: ['pending', 'approved'] }
     });
-
     res.json({ success: true, users });
   } catch (err) {
     console.error('Fetch deposits error:', err);
@@ -89,7 +114,7 @@ router.get('/deposits', authenticate, isAdmin, async (req, res) => {
   }
 });
 
-// ✅ KYC: Pending requests
+// ✅ KYC - Pending Requests
 router.get('/kyc-requests', authenticate, isAdmin, async (req, res) => {
   try {
     const requests = await User.find({ 'kyc.status': 'pending' });
@@ -100,7 +125,7 @@ router.get('/kyc-requests', authenticate, isAdmin, async (req, res) => {
   }
 });
 
-// ✅ KYC: Approve
+// ✅ KYC - Approve
 router.post('/approve/:id', authenticate, isAdmin, async (req, res) => {
   try {
     const user = await User.findById(req.params.id);
@@ -118,7 +143,7 @@ router.post('/approve/:id', authenticate, isAdmin, async (req, res) => {
   }
 });
 
-// ✅ KYC: Reject
+// ✅ KYC - Reject
 router.post('/reject/:id', authenticate, isAdmin, async (req, res) => {
   try {
     const user = await User.findById(req.params.id);
@@ -134,7 +159,7 @@ router.post('/reject/:id', authenticate, isAdmin, async (req, res) => {
   }
 });
 
-// ✅ Real Deposit History
+// ✅ Deposit History
 router.get('/deposit-history', authenticate, isAdmin, async (req, res) => {
   try {
     const users = await User.find({ 'depositHistory.0': { $exists: true } });
