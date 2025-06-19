@@ -7,8 +7,8 @@ const submitKYC = async (req, res) => {
     const user = await User.findById(req.user.id);
     if (!user) return res.status(404).json({ message: 'User not found' });
 
-    if (user.kyc.status === 'verified') {
-      return res.status(400).json({ message: 'KYC already verified' });
+    if (user.kyc.status === 'approved') {
+      return res.status(400).json({ message: 'KYC already approved' });
     }
 
     if (user.balance < 0.01) {
@@ -31,18 +31,18 @@ const submitKYC = async (req, res) => {
   }
 };
 
-// 🔹 Admin: Manually Verify KYC
+// 🔹 Admin: Manually Approve KYC
 const approveKYC = async (req, res) => {
   try {
     const { userId } = req.params;
     const user = await User.findById(userId);
     if (!user) return res.status(404).json({ message: 'User not found' });
 
-    if (user.kyc.status === 'verified') {
-      return res.status(400).json({ message: 'User is already verified' });
+    if (user.kyc.status === 'approved') {
+      return res.status(400).json({ message: 'User is already approved' });
     }
 
-    user.kyc.status = 'verified';
+    user.kyc.status = 'approved';
     user.kyc.verifiedAt = new Date();
     await user.save();
 
@@ -69,7 +69,7 @@ const approveKYC = async (req, res) => {
       }
     }
 
-    res.json({ success: true, message: '✅ KYC verified successfully' });
+    res.json({ success: true, message: '✅ KYC approved successfully' });
   } catch (error) {
     console.error('KYC Approve Error:', error);
     res.status(500).json({ message: '❌ Server error during approval' });
