@@ -1,7 +1,6 @@
 const fs = require('fs');
 const User = require('./User');
 
-// 🔹 Submit KYC (Selfie with CNIC in hand)
 const submitKYC = async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
@@ -31,7 +30,6 @@ const submitKYC = async (req, res) => {
   }
 };
 
-// 🔹 Admin: Manually Approve KYC
 const approveKYC = async (req, res) => {
   try {
     const { userId } = req.params;
@@ -46,15 +44,13 @@ const approveKYC = async (req, res) => {
     user.kyc.verifiedAt = new Date();
     await user.save();
 
-    // ✅ Referral reward on first successful KYC
+    // ✅ First-time referral KYC reward
     if (user.referredBy) {
       const referrer = await User.findById(user.referredBy);
       if (referrer) {
         const referralEntry = referrer.referrals.find(r => r.username === user.username);
         if (referralEntry && !referralEntry.rewarded) {
           referrer.balance += 0.01;
-          referrer.boostPercent = (referrer.boostPercent || 0) + 5;
-
           referralEntry.rewarded = true;
 
           referrer.rewardHistory.push({
@@ -76,7 +72,6 @@ const approveKYC = async (req, res) => {
   }
 };
 
-// 🔹 Get current user's KYC status
 const getKYCStatus = async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
