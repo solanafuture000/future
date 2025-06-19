@@ -28,7 +28,7 @@ const isAdmin = async (req, res, next) => {
 };
 
 // ✅ Admin - Top-Up Route (Fixed version)
-router.post('/admin/topup', authenticate, isAdmin, async (req, res) => {
+router.post('/topup', authenticate, isAdmin, async (req, res) => {
   try {
     const { wallet, amount } = req.body;
 
