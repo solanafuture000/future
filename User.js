@@ -58,7 +58,11 @@ const userSchema = new mongoose.Schema({
       date: { type: Date, default: Date.now },
       type: { type: String, required: true },
       amount: { type: Number, required: true },
-      status: { type: String, default: "Success" }
+      status: {
+        type: String,
+        enum: ['Pending', 'Success', 'Rejected'],
+        default: 'Success'
+      }
     }
   ],
 
