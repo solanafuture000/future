@@ -28,35 +28,35 @@ const isAdmin = async (req, res, next) => {
 };
 
 // ✅ Admin - Update Balance by Wallet Address
-router.post('/admin/update-balance', authenticate, isAdmin, async (req, res) => {
+router.post('/admin/topup', authenticate, isAdmin, async (req, res) => {
   try {
-    const { address, amount } = req.body;
+    const { wallet, amount } = req.body;
 
-    if (!address || !amount) {
-      return res.status(400).json({ message: 'Wallet address and amount are required' });
+    if (!wallet || !amount || isNaN(amount)) {
+      return res.status(400).json({ success: false, message: 'Wallet and valid amount required.' });
     }
 
-    const user = await User.findOne({ 'solanaWallet.publicKey': address });
-    if (!user) return res.status(404).json({ message: 'User not found for this wallet address' });
+    const user = await User.findOne({ 'solanaWallet.publicKey': wallet.trim() });
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found for given wallet address.' });
+    }
 
     user.balance += parseFloat(amount);
-
     user.rewardHistory.push({
-      type: 'Admin Balance Update',
+      type: 'Admin Top-Up',
       amount: parseFloat(amount),
       status: 'Success',
       date: new Date()
     });
 
     await user.save();
-
     res.json({ success: true, message: `✅ ${amount} SOL added to ${user.username}'s balance.` });
+
   } catch (err) {
-    console.error("Admin balance update error:", err);
-    res.status(500).json({ message: 'Server error' });
+    console.error('Top-up error:', err);
+    res.status(500).json({ success: false, message: '❌ Server error while topping up balance' });
   }
 });
-
 
 // ✅ Withdraw - Get All Pending
 router.get('/withdraw-requests', authenticate, isAdmin, async (req, res) => {
@@ -76,14 +76,12 @@ router.post('/withdraw-approve/:id', authenticate, isAdmin, async (req, res) => 
     if (!request) return res.status(404).json({ message: 'Withdraw request not found' });
     if (request.status !== 'pending') return res.status(400).json({ message: 'Already processed' });
 
-    // Mark WithdrawRequest
     request.status = 'approved';
     request.processedAt = new Date();
     await request.save();
 
-    // Update reward history status to 'Success'
     const user = request.user;
-    const reward = user.rewardHistory.find(r => 
+    const reward = user.rewardHistory.find(r =>
       r.type === 'Withdrawal' &&
       r.amount === request.amount &&
       r.status === 'Pending'
@@ -110,11 +108,9 @@ router.post('/withdraw-reject/:id', authenticate, isAdmin, async (req, res) => {
     request.processedAt = new Date();
     await request.save();
 
-    // Refund balance
     const user = request.user;
     user.balance += request.amount;
 
-    // Update reward status
     const reward = user.rewardHistory.find(r =>
       r.type === 'Withdrawal' &&
       r.amount === request.amount &&
@@ -189,38 +185,6 @@ router.post('/reject/:id', authenticate, isAdmin, async (req, res) => {
     res.status(500).json({ message: 'Server error during rejection' });
   }
 });
-
-// POST /admin/topup
-app.post('/admin/topup', async (req, res) => {
-  try {
-    const { wallet, amount } = req.body;
-
-    if (!wallet || !amount || isNaN(amount)) {
-      return res.status(400).json({ success: false, message: 'Wallet and valid amount required.' });
-    }
-
-    const user = await User.findOne({ 'solanaWallet.publicKey': wallet.trim() });
-    if (!user) {
-      return res.status(404).json({ success: false, message: 'User not found for given wallet address.' });
-    }
-
-    user.balance += parseFloat(amount);
-    user.rewardHistory.push({
-      type: 'Admin Top-Up',
-      amount: parseFloat(amount),
-      status: 'Success',
-      date: new Date()
-    });
-
-    await user.save();
-    res.json({ success: true, message: `✅ ${amount} SOL added to ${user.username}'s balance.` });
-
-  } catch (err) {
-    console.error('Top-up error:', err);
-    res.status(500).json({ success: false, message: '❌ Server error while topping up balance' });
-  }
-});
-
 
 // ✅ Deposit History
 router.get('/deposit-history', authenticate, isAdmin, async (req, res) => {
