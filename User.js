@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 const { Schema } = mongoose;
 
-const userSchema = new Schema({
+const userSchema = new mongoose.Schema({
   // ✅ Basic Info
   username: { type: String, required: true },
   email: { type: String, required: true, unique: true },
@@ -13,14 +13,9 @@ const userSchema = new Schema({
     secretKey: { type: String, required: true }
   },
 
-  // ✅ Main Balance
+  // ✅ Main Balance & Role
   balance: { type: Number, default: 0 },
-
-  // ✅ Admin Role
   isAdmin: { type: Boolean, default: false },
-
-  // ✅ First Stake Reward Flag
-  firstStakeRewarded: { type: Boolean, default: false },
 
   // ✅ Referral System
   referredBy: { type: Schema.Types.ObjectId, ref: 'User', default: null },
@@ -28,11 +23,12 @@ const userSchema = new Schema({
   referrals: [
     {
       username: String,
-      referredAt: { type: Date, default: Date.now }
+      referredAt: { type: Date, default: Date.now },
+      rewarded: { type: Boolean, default: false } // ✅ for KYC & staking cashback reward
     }
   ],
 
-  // ✅ KYC Information
+  // ✅ KYC Info
   kyc: {
     imagePath: String,
     status: {
@@ -49,7 +45,7 @@ const userSchema = new Schema({
     reviewedAt: Date
   },
 
-  // ✅ Mining Info
+  // ✅ Mining
   mining: {
     lastClaimed: { type: Date, default: new Date(0) },
     sessionStart: { type: Date, default: null }
@@ -69,7 +65,7 @@ const userSchema = new Schema({
     }
   ],
 
-  // ✅ Staking Entries
+  // ✅ Staking
   stakingEntries: [
     {
       amount: Number,
@@ -81,9 +77,9 @@ const userSchema = new Schema({
     }
   ],
 
-  // ✅ Staking Summary
   stakingReward: { type: Number, default: 0 },
   totalStaked: { type: Number, default: 0 },
+  firstStakeRewarded: { type: Boolean, default: false }, // ✅ Only 1st stake reward to upliner
 
   // ✅ Admin Logs
   adminLogs: [
