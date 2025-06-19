@@ -27,7 +27,7 @@ const isAdmin = async (req, res, next) => {
   next();
 };
 
-// ✅ Admin - Update Balance by Wallet Address
+// ✅ Admin - Top-Up Route (Fixed version)
 router.post('/admin/topup', authenticate, isAdmin, async (req, res) => {
   try {
     const { wallet, amount } = req.body;
