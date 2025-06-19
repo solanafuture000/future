@@ -382,9 +382,10 @@ app.post('/withdraw', authenticate, async (req, res) => {
   }
 });
 ﻿
-// ✅ Stake Route - Multiple staking entries
+// ✅ Stake Route - Multiple staking entries with referrer 10% reward
 app.post('/stake', authenticate, async (req, res) => {
   const { amount } = req.body;
+
   if (!amount || amount < 0.1) {
     return res.status(400).json({ success: false, message: "❌ Minimum stake is 0.1 SOL" });
   }
@@ -396,7 +397,7 @@ app.post('/stake', authenticate, async (req, res) => {
     return res.status(400).json({ success: false, message: "❌ Insufficient balance" });
   }
 
-  // Deduct balance and push to staking array
+  // 💰 Deduct balance and stake
   user.balance -= amount;
   user.stakingEntries.push({
     amount,
@@ -405,7 +406,6 @@ app.post('/stake', authenticate, async (req, res) => {
     rewardEarned: 0,
     isUnstaked: false
   });
-
   user.totalStaked += amount;
 
   user.rewardHistory.push({
@@ -414,6 +414,26 @@ app.post('/stake', authenticate, async (req, res) => {
     status: 'Success',
     date: new Date()
   });
+
+  // 🎁 First Time Stake Reward to Referrer
+  if (!user.firstStakeRewarded && user.referredBy) {
+    const referrer = await User.findById(user.referredBy);
+    if (referrer) {
+      const rewardAmount = amount * 0.10;
+      referrer.balance += rewardAmount;
+
+      referrer.rewardHistory.push({
+        date: new Date(),
+        type: "Referral Bonus (Staking)",
+        amount: rewardAmount,
+        status: "Success"
+      });
+
+      await referrer.save();
+    }
+
+    user.firstStakeRewarded = true;
+  }
 
   await user.save();
 
