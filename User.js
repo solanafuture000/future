@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 const { Schema } = mongoose;
 
-const userSchema = new mongoose.Schema({
+const userSchema = new Schema({
   // ✅ Basic Info
   username: { type: String, required: true },
   email: { type: String, required: true, unique: true },
@@ -13,14 +13,14 @@ const userSchema = new mongoose.Schema({
     secretKey: { type: String, required: true }
   },
 
-firstStakeRewarded: { type: Boolean, default: false },
-
-
   // ✅ Main Balance
   balance: { type: Number, default: 0 },
 
   // ✅ Admin Role
   isAdmin: { type: Boolean, default: false },
+
+  // ✅ First Stake Reward Flag
+  firstStakeRewarded: { type: Boolean, default: false },
 
   // ✅ Referral System
   referredBy: { type: Schema.Types.ObjectId, ref: 'User', default: null },
@@ -100,7 +100,7 @@ firstStakeRewarded: { type: Boolean, default: false },
   emailToken: String,
   emailCode: String,
 
-  // ✅ Deposit History for Monitoring
+  // ✅ Deposit History
   depositHistory: [
     {
       txId: String,
