@@ -536,7 +536,8 @@ app.post('/unstake', authenticate, async (req, res) => {
     newBalance: user.balance
   });
 });
-// MINING REWARD CLAIM (Updated with Boost Logic)
+
+
 app.post('/mine/claim', authenticate, async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
@@ -551,7 +552,7 @@ app.post('/mine/claim', authenticate, async (req, res) => {
     }
 
     const elapsedMs = now - sessionStart;
-    const maxMiningDurationMs = 3 * 60 * 60 * 1000; // 3 hours
+    const maxMiningDurationMs = 3 * 60 * 60 * 1000;
 
     if (elapsedMs < maxMiningDurationMs) {
       const remaining = ((maxMiningDurationMs - elapsedMs) / 1000 / 60).toFixed(1);
@@ -560,26 +561,26 @@ app.post('/mine/claim', authenticate, async (req, res) => {
       });
     }
 
-    // ✅ Base reward calculation
     const rewardPerMs = 0.00025 / maxMiningDurationMs;
     const reward = rewardPerMs * maxMiningDurationMs;
 
-    // ✅ Boost logic: verified referrals
     const verifiedReferrals = await User.find({
       username: { $in: user.referrals.map(r => r.username) },
-      'kyc.status': 'verified',
+      'kyc.status': 'approved',
       balance: { $gte: 0.01 }
     });
 
-    const boostPercent = 0.05 * verifiedReferrals.length; // 5% per verified referral
+    const boostPercent = 0.05 * verifiedReferrals.length;
     const boostedReward = reward * boostPercent;
-
     const totalReward = reward + boostedReward;
 
-    // ✅ Update user data
-    user.balance += totalReward;
+    // 🧠 Debug logs
+    console.log(`[CLAIM] User: ${user.username}`);
+    console.log(`Reward: ${reward.toFixed(6)} | Boost: ${boostPercent * 100}% | Final: ${totalReward.toFixed(6)}`);
+
+    user.balance = (user.balance || 0) + totalReward;
     user.mining.lastClaimed = now;
-    user.mining.sessionStart = null; // Reset session after claiming
+    user.mining.sessionStart = null;
 
     user.rewardHistory.push({
       date: now,
@@ -598,7 +599,7 @@ app.post('/mine/claim', authenticate, async (req, res) => {
     });
 
   } catch (err) {
-    console.error(err);
+    console.error("⛔ Error in mining claim:", err);
     res.status(500).json({ message: 'Error during claim' });
   }
 });
