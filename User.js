@@ -15,6 +15,7 @@ const userSchema = new mongoose.Schema({
 
   // ✅ Main Balance & Role
   balance: { type: Number, default: 0 },
+  referralReward: { type: Number, default: 0 }, // ✅ Added this line!
   isAdmin: { type: Boolean, default: false },
 
   // ✅ Referral System
@@ -24,7 +25,7 @@ const userSchema = new mongoose.Schema({
     {
       username: String,
       referredAt: { type: Date, default: Date.now },
-      rewarded: { type: Boolean, default: false } // ✅ for KYC & staking cashback reward
+      rewarded: { type: Boolean, default: false }
     }
   ],
 
@@ -79,7 +80,7 @@ const userSchema = new mongoose.Schema({
 
   stakingReward: { type: Number, default: 0 },
   totalStaked: { type: Number, default: 0 },
-  firstStakeRewarded: { type: Boolean, default: false }, // ✅ Only 1st stake reward to upliner
+  firstStakeRewarded: { type: Boolean, default: false },
 
   // ✅ Admin Logs
   adminLogs: [
