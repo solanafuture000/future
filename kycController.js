@@ -56,10 +56,10 @@ const approveKYC = async (req, res) => {
         );
 
         if (referralEntry) {
-          // 💰 Add 0.01 SOL reward to referrer's balance
+          // ✅ Reward & Record
           referrer.balance += 0.01;
+          referrer.referralReward = (referrer.referralReward || 0) + 0.01;
 
-          // 📜 Log reward in reward history
           referrer.rewardHistory.push({
             type: 'Referral Reward (KYC)',
             amount: 0.01,
@@ -67,7 +67,6 @@ const approveKYC = async (req, res) => {
             status: 'Success'
           });
 
-          // ✅ Mark referral as rewarded
           referralEntry.rewarded = true;
 
           await referrer.save();
