@@ -31,7 +31,7 @@ const submitKYC = async (req, res) => {
   }
 };
 
-// ✅ KYC Approve Controller (with Referral Reward Fix)
+// ✅ KYC Approve Controller (Fixed)
 const approveKYC = async (req, res) => {
   try {
     const { userId } = req.params;
@@ -56,11 +56,10 @@ const approveKYC = async (req, res) => {
         );
 
         if (referralEntry) {
-          // 💰 Reward the referrer
+          // 💰 Add 0.01 SOL reward to referrer's balance
           referrer.balance += 0.01;
-          referrer.referralReward = (referrer.referralReward || 0) + 0.01;
 
-          // 📜 Log the reward
+          // 📜 Log reward in reward history
           referrer.rewardHistory.push({
             type: 'Referral Reward (KYC)',
             amount: 0.01,
