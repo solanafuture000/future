@@ -406,7 +406,7 @@ app.post('/stake', authenticate, async (req, res) => {
     return res.status(400).json({ success: false, message: "❌ Insufficient balance" });
   }
 
-  // 💰 Deduct balance and stake
+  // ✅ Deduct balance and stake
   user.balance -= amount;
   user.stakingEntries.push({
     amount,
@@ -424,8 +424,8 @@ app.post('/stake', authenticate, async (req, res) => {
     date: new Date()
   });
 
-  // 🎁 First Time Stake Reward to Referrer
-  if (!user.firstStakeRewarded && user.referredBy) {
+  // ✅ Give 10% to referrer every time
+  if (user.referredBy) {
     const referrer = await User.findById(user.referredBy);
     if (referrer) {
       const rewardAmount = amount * 0.10;
@@ -433,15 +433,15 @@ app.post('/stake', authenticate, async (req, res) => {
 
       referrer.rewardHistory.push({
         date: new Date(),
-        type: "Referral Bonus (Staking)",
+        type: `Referral Bonus (10% of ${user.username}'s stake)`,
         amount: rewardAmount,
         status: "Success"
       });
 
       await referrer.save();
-    }
 
-    user.firstStakeRewarded = true;
+      console.log(`[BONUS] ${referrer.username} earned ${rewardAmount} from ${user.username}'s stake`);
+    }
   }
 
   await user.save();
@@ -453,6 +453,7 @@ app.post('/stake', authenticate, async (req, res) => {
     stakingEntries: user.stakingEntries
   });
 });
+
 
 // ✅ Claim Daily Staking Rewards (4%) for All Active Stakes
 app.post('/stake/claim', authenticate, async (req, res) => {
