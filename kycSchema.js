@@ -10,4 +10,3 @@ const kycSchema = new mongoose.Schema({
 const KYC = mongoose.model('KYC', kycSchema);
 
 module.exports = KYC;
-U
