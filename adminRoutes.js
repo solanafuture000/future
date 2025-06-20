@@ -43,12 +43,11 @@ router.post('/topup', authenticate, isAdmin, async (req, res) => {
 
     user.balance += parseFloat(amount);
     user.rewardHistory.push({
-  type: 'Deposit',
-  amount: topupAmount,
-  status: 'Success',
-  date: new Date()
-});
- });
+      type: 'Deposit',
+      amount: parseFloat(amount),
+      status: 'Success',
+      date: new Date()
+    });
 
     await user.save();
     res.json({ success: true, message: `✅ ${amount} SOL added to ${user.username}'s balance.` });
