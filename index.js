@@ -536,143 +536,70 @@ app.post('/unstake', authenticate, async (req, res) => {
     newBalance: user.balance
   });
 });
-// Start Mining Session
-app.post('/mine/start', authenticate, async (req, res) => {
-  try {
-    const user = await User.findById(req.user.id);
-    if (!user) return res.status(404).json({ message: 'User not found' });
-
-    // Initialize mining session
-    user.mining = {
-      sessionStart: new Date(),
-      lastClaimed: null,
-      isActive: true
-    };
-    
-    await user.save();
-    
-    res.json({ 
-      success: true, 
-      message: 'Mining session started successfully!',
-      startTime: user.mining.sessionStart
-    });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Error starting mining session' });
-  }
-});
-
-// Check Mining Status
-app.get('/mine/status', authenticate, async (req, res) => {
-  try {
-    const user = await User.findById(req.user.id);
-    if (!user) return res.status(404).json({ message: 'User not found' });
-
-    const isActive = user.mining?.isActive || false;
-    const sessionStart = user.mining?.sessionStart;
-    const now = new Date();
-    
-    const elapsedMs = sessionStart ? now - new Date(sessionStart) : 0;
-    const maxDuration = 3 * 60 * 60 * 1000; // 3 hours
-    const remainingMs = Math.max(0, maxDuration - elapsedMs);
-    const progress = Math.min(100, (elapsedMs / maxDuration) * 100);
-    const canClaim = elapsedMs >= maxDuration;
-
-    res.json({
-      isActive,
-      sessionStart,
-      elapsedMs,
-      remainingMs,
-      progress,
-      canClaim,
-      message: canClaim ? 'Ready to claim rewards!' : `Mining in progress (${Math.floor(remainingMs/60000)}m ${Math.floor((remainingMs%60000)/1000)}s remaining)`
-    });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Error checking mining status' });
-  }
-});
-
-// Claim Mining Rewards
+// MINING REWARD CLAIM (Updated with Boost Logic)
 app.post('/mine/claim', authenticate, async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
     if (!user) return res.status(404).json({ message: 'User not found' });
 
     const now = new Date();
-    const sessionStart = user.mining?.sessionStart;
-    const elapsedMs = sessionStart ? now - new Date(sessionStart) : 0;
-    const requiredDuration = 3 * 60 * 60 * 1000; // 3 hours
+    const sessionStart = user.mining.sessionStart;
+    const lastClaim = user.mining.lastClaimed || new Date(0);
 
-    if (!sessionStart || !user.mining?.isActive) {
-      return res.status(400).json({ message: 'No active mining session found' });
+    if (!sessionStart) {
+      return res.status(400).json({ message: 'Mining session not started.' });
     }
 
-    if (elapsedMs < requiredDuration) {
-      const remaining = ((requiredDuration - elapsedMs) / 1000 / 60).toFixed(1);
+    const elapsedMs = now - sessionStart;
+    const maxMiningDurationMs = 3 * 60 * 60 * 1000; // 3 hours
+
+    if (elapsedMs < maxMiningDurationMs) {
+      const remaining = ((maxMiningDurationMs - elapsedMs) / 1000 / 60).toFixed(1);
       return res.status(400).json({
         message: `You need to mine for full 3 hours. ${remaining} minutes remaining.`
       });
     }
 
-    // Calculate base reward
-    const baseReward = 0.00025; // Base reward for 3 hours
+    // ✅ Base reward calculation
+    const rewardPerMs = 0.00025 / maxMiningDurationMs;
+    const reward = rewardPerMs * maxMiningDurationMs;
 
-    // Calculate boost from referrals
+    // ✅ Boost logic: verified referrals
     const verifiedReferrals = await User.find({
       username: { $in: user.referrals.map(r => r.username) },
-      'kyc.status': 'approved',
+      'kyc.status': 'verified',
       balance: { $gte: 0.01 }
     });
 
-    const boostPercent = 0.05 * verifiedReferrals.length; // 5% per referral
-    const totalReward = baseReward * (1 + boostPercent);
+    const boostPercent = 0.05 * verifiedReferrals.length; // 5% per verified referral
+    const boostedReward = reward * boostPercent;
 
-    // Update user balance and mining status
+    const totalReward = reward + boostedReward;
+
+    // ✅ Update user data
     user.balance += totalReward;
-    user.mining = {
-      sessionStart: null,
-      lastClaimed: now,
-      isActive: false
-    };
+    user.mining.lastClaimed = now;
+    user.mining.sessionStart = null; // Reset session after claiming
 
     user.rewardHistory.push({
       date: now,
-      type: 'Mining Reward',
+      type: 'Mining',
       amount: totalReward,
       status: 'Success'
     });
 
     await user.save();
 
-    // Automatically start new session after 10 seconds
-    setTimeout(async () => {
-      try {
-        const user = await User.findById(req.user.id);
-        if (user) {
-          user.mining = {
-            sessionStart: new Date(),
-            lastClaimed: null,
-            isActive: true
-          };
-          await user.save();
-        }
-      } catch (err) {
-        console.error('Error auto-starting mining:', err);
-      }
-    }, 10000); // 10 seconds delay
-
     res.json({
       success: true,
-      message: `Successfully claimed ${totalReward.toFixed(6)} SOL (Boost: ${boostPercent * 100}%)!`,
-      reward: totalReward.toFixed(6),
-      balance: user.balance,
-      nextSessionIn: 10 // seconds
+      message: `You mined ${totalReward.toFixed(6)} SOL (Boost: ${boostPercent * 100}%)!`,
+      earned: totalReward.toFixed(6),
+      balance: user.balance
     });
 
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: 'Error claiming mining rewards' });
+    res.status(500).json({ message: 'Error during claim' });
   }
 });
 
