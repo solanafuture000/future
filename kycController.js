@@ -46,9 +46,13 @@ const approveKYC = async (req, res) => {
     user.kyc.verifiedAt = new Date();
     user.kyc.approvedByAdmin = true;
 
-    // ✅ Give KYC reward to the user themselves
+    // ✅ KYC Reward
     const rewardAmount = 0.01;
-    user.balance += rewardAmount;
+    user.balance = (user.balance || 0) + rewardAmount;
+
+    // Debug
+    console.log(`[DEBUG] Before Save: ${user.username} balance = ${user.balance}`);
+
     user.rewardHistory.push({
       type: 'KYC Reward',
       amount: rewardAmount,
@@ -58,7 +62,9 @@ const approveKYC = async (req, res) => {
 
     await user.save();
 
-    // ✅ Give referral reward only once to referrer
+    console.log(`[DEBUG] After Save: ${user.username} balance updated.`);
+
+    // ✅ Referral reward
     if (user.referredBy) {
       const referrer = await User.findById(user.referredBy);
       if (referrer) {
@@ -67,7 +73,6 @@ const approveKYC = async (req, res) => {
         );
 
         if (referralEntry) {
-          // ✅ Reward & Record
           referrer.balance += 0.01;
           referrer.referralReward = (referrer.referralReward || 0) + 0.01;
 
@@ -79,13 +84,12 @@ const approveKYC = async (req, res) => {
           });
 
           referralEntry.rewarded = true;
-
           await referrer.save();
         }
       }
     }
 
-    res.json({ success: true, message: '✅ KYC approved successfully and reward given' });
+    res.json({ success: true, message: '✅ KYC approved and reward given.' });
   } catch (error) {
     console.error('KYC Approve Error:', error);
     res.status(500).json({ message: '❌ Server error during approval' });
