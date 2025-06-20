@@ -300,12 +300,14 @@ app.get('/profile', authenticate, async (req, res) => {
     const user = await User.findById(req.user.id).lean();
     if (!user) return res.status(404).json({ success: false, message: "User not found" });
 
+    // ✅ Total referral reward from history
     const referralReward = (user.rewardHistory || [])
-      .filter(r => r.type.includes("Referral") && r.status === "Success")
+      .filter(r => r.type.toLowerCase().includes("referral") && r.status === "Success")
       .reduce((sum, r) => sum + r.amount, 0);
 
+    // ✅ Total staking reward from history
     const stakingReward = (user.rewardHistory || [])
-      .filter(r => r.type.includes("Staking") && r.status === "Success")
+      .filter(r => r.type.toLowerCase().includes("staking") && r.status === "Success")
       .reduce((sum, r) => sum + r.amount, 0);
 
     res.json({
@@ -313,21 +315,25 @@ app.get('/profile', authenticate, async (req, res) => {
       user: {
         username: user.username,
         email: user.email,
-        balance: user.balance,
+        balance: parseFloat((user.balance || 0).toFixed(5)),
         referralReward: parseFloat(referralReward.toFixed(5)),
         stakingReward: parseFloat(stakingReward.toFixed(5)),
         totalStaked: user.totalStaked || 0,
+
         solanaWallet: {
           publicKey: user.solanaWallet?.publicKey || ""
         },
+
         referredBy: user.referredBy || null,
         referrals: user.referrals || [],
+
         kyc: {
           status: user.kyc?.status || "not_submitted",
           imagePath: user.kyc?.imagePath || null,
           submittedAt: user.kyc?.submittedAt || null,
           verifiedAt: user.kyc?.verifiedAt || null
         },
+
         rewardHistory: user.rewardHistory || []
       }
     });
