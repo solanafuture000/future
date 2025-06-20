@@ -58,6 +58,7 @@ const approveKYC = async (req, res) => {
         if (referralEntry) {
           // 💰 Reward the referrer
           referrer.balance += 0.01;
+          referrer.referralReward += 0.01; // ✅ Add this line!
 
           // 📜 Log the reward
           referrer.rewardHistory.push({
@@ -79,30 +80,6 @@ const approveKYC = async (req, res) => {
   } catch (error) {
     console.error('KYC Approve Error:', error);
     res.status(500).json({ message: '❌ Server error during approval' });
-  }
-};
-
-// ✅ KYC Status Checker
-const getKYCStatus = async (req, res) => {
-  try {
-    const user = await User.findById(req.user.id);
-    if (!user) return res.status(404).json({ message: 'User not found' });
-
-    const status = user.kyc?.status || 'not_submitted';
-    const submittedAt = user.kyc?.submittedAt || null;
-    const verifiedAt = user.kyc?.verifiedAt || null;
-
-    res.json({
-      success: true,
-      kyc: {
-        status,
-        submittedAt,
-        verifiedAt
-      }
-    });
-  } catch (error) {
-    console.error('KYC Status Error:', error);
-    res.status(500).json({ message: '❌ Failed to fetch KYC status' });
   }
 };
 
