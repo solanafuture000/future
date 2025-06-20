@@ -637,17 +637,22 @@ app.get('/rewards/history', authenticate, async (req, res) => {
   }
 });
 // ✅ GET all active staking entries
-app.get('/staking/active', authenticate, async (req, res) => {
-  const user = await User.findById(req.user.id);
-  if (!user) return res.status(404).json({ message: "User not found" });
+app.get('/rewards/history', authenticate, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select('rewardHistory balance');
+    if (!user) return res.status(404).json({ success: false, message: "User not found" });
 
-  const activeStakes = user.stakingEntries.filter(s => !s.isUnstaked);
-
-  res.json({
-    success: true,
-    stakes: activeStakes
- });
+    res.json({
+      success: true,
+      balance: user.balance || 0, // ✅ Include balance
+      history: (user.rewardHistory || []).reverse()
+    });
+  } catch (err) {
+    console.error("Reward history error:", err);
+    res.status(500).json({ success: false, message: "Failed to load reward history" });
+  }
 });
+
 
 // ✅ RESEND CODE
 app.post('/resend-code', async (req, res) => {
