@@ -192,7 +192,7 @@ app.post('/verify-code', async (req, res) => {
   }
 });
 
-// ✅ Referrals Route
+// ✅ Referrals Route (Updated with correct frontend domain if needed in future use)
 app.get('/referrals', authenticate, async (req, res) => {
   try {
     const user = await User.findById(req.user.id).lean();
@@ -202,6 +202,7 @@ app.get('/referrals', authenticate, async (req, res) => {
 
     const formattedReferrals = await Promise.all(referrals.map(async ref => {
       if (!ref.username) return null;
+
       const referredUser = await User.findOne({ username: ref.username }).lean();
       const kycStatus = referredUser?.kyc?.status || 'not_submitted';
       const reward = kycStatus === 'approved' ? 0.01 : 0;
@@ -209,7 +210,8 @@ app.get('/referrals', authenticate, async (req, res) => {
       return {
         username: ref.username,
         reward,
-        kycStatus
+        kycStatus,
+        referralLink: `https://solanafuturemining.web.app/register.html?ref=${ref.username}`
       };
     }));
 
@@ -233,7 +235,7 @@ app.get('/verify-email', async (req, res) => {
   await user.save();
 
   // ✅ Automatically redirect to dashboard after verification
-  res.redirect('https://solana-future-24bf1.web.app/dashboard.html');
+  res.redirect('https://solanafuturemining.web.app/dashboard.html');
 });
 
 
