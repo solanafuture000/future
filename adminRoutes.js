@@ -186,6 +186,17 @@ router.post('/reject/:id', authenticate, isAdmin, async (req, res) => {
   }
 });
 
+app.get('/admin/total-users', async (req, res) => {
+  try {
+    const totalUsers = await User.countDocuments();
+    res.json({ success: true, totalUsers });
+  } catch (err) {
+    console.error("Error fetching user count:", err);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+});
+
+
 // ✅ Deposit History
 router.get('/deposit-history', authenticate, isAdmin, async (req, res) => {
   try {
