@@ -21,7 +21,10 @@ const app = express();
 
 // Enhanced CORS configuration
 const corsOptions = {
-  origin: 'https://solana-future-24bf1.web.app',
+  origin: [
+    'https://solanafuturemining.web.app',
+    'https://solanafuturemining.firebaseapp.com'
+  ],
   methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true,
