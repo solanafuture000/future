@@ -186,7 +186,8 @@ router.post('/reject/:id', authenticate, isAdmin, async (req, res) => {
   }
 });
 
-app.get('/admin/total-users', async (req, res) => {
+// ✅ Get total user count
+router.get('/total-users', async (req, res) => {
   try {
     const totalUsers = await User.countDocuments();
     res.json({ success: true, totalUsers });
