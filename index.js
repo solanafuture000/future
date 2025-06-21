@@ -500,21 +500,40 @@ app.post('/stake/claim', authenticate, async (req, res) => {
 
   res.json({ success: true, message: `✅ Claimed ${totalReward.toFixed(4)} SOL from all eligible stakes.` });
 });
-// ✅ Unstake Route - Only after 7 days
+
+
+// ✅ Unstake Route - With earned reward after 7 days
 app.post('/unstake', authenticate, async (req, res) => {
   const user = await User.findById(req.user.id);
   if (!user) return res.status(404).json({ message: 'User not found' });
 
   const now = new Date();
   let unstakedAmount = 0;
+  let totalRewardAdded = 0;
 
   user.stakingEntries.forEach(entry => {
     const days = (now - new Date(entry.startDate)) / (1000 * 60 * 60 * 24);
+
     if (!entry.isUnstaked && days >= 7) {
       entry.isUnstaked = true;
       entry.unstakedAt = now;
+
+      // ✅ Add staked amount back
       user.balance += entry.amount;
       unstakedAmount += entry.amount;
+
+      // ✅ Also add earned reward to balance
+      if (entry.rewardEarned && entry.rewardEarned > 0) {
+        user.balance += entry.rewardEarned;
+        totalRewardAdded += entry.rewardEarned;
+
+        user.rewardHistory.push({
+          type: 'Stake Reward Collected on Unstake',
+          amount: entry.rewardEarned,
+          date: now,
+          status: 'Success'
+        });
+      }
 
       user.rewardHistory.push({
         type: 'Unstake',
@@ -533,7 +552,7 @@ app.post('/unstake', authenticate, async (req, res) => {
 
   return res.json({
     success: true,
-    message: `✅ Successfully unstaked ${unstakedAmount} SOL.`,
+    message: `✅ Unstaked ${unstakedAmount} SOL + ${totalRewardAdded.toFixed(4)} SOL reward.`,
     newBalance: user.balance
   });
 });
