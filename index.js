@@ -192,6 +192,27 @@ app.post('/verify-code', async (req, res) => {
   }
 });
 
+
+app.post('/mine/start', authenticate, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    user.mining.sessionStart = new Date();
+    user.mining.lastClaimed = new Date();
+    user.mining.isMiningActive = true;
+
+    await user.save();
+
+    res.json({ success: true, message: "🚀 Mining session started successfully!" });
+
+  } catch (err) {
+    console.error("Error in /mine/start:", err);
+    res.status(500).json({ message: "Server error while starting mining session." });
+  }
+});
+
+
 // ✅ Referrals Route (Updated with correct frontend domain if needed in future use)
 app.get('/referrals', authenticate, async (req, res) => {
   try {
