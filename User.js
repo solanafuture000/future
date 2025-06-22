@@ -2,19 +2,23 @@ const mongoose = require('mongoose');
 const { Schema } = mongoose;
 
 const userSchema = new mongoose.Schema({
+  // 🔰 Basic Info
   username: { type: String, required: true },
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
 
+  // 💼 Solana Wallet
   solanaWallet: {
     publicKey: { type: String, required: true },
     secretKey: { type: String, required: true }
   },
 
+  // 💰 Balance & Admin
   balance: { type: Number, default: 0 },
-  referralReward: { type: Number, default: 0 }, // ✅ Added
+  referralReward: { type: Number, default: 0 },
   isAdmin: { type: Boolean, default: false },
 
+  // 🔗 Referrals
   referredBy: { type: Schema.Types.ObjectId, ref: 'User', default: null },
   referralRewardClaimed: { type: Boolean, default: false },
   referrals: [
@@ -25,6 +29,7 @@ const userSchema = new mongoose.Schema({
     }
   ],
 
+  // ✅ KYC Info
   kyc: {
     imagePath: String,
     status: {
@@ -41,11 +46,14 @@ const userSchema = new mongoose.Schema({
     reviewedAt: Date
   },
 
+  // ⛏️ Mining Info
   mining: {
     lastClaimed: { type: Date, default: new Date(0) },
-    sessionStart: { type: Date, default: null }
+    sessionStart: { type: Date, default: null },
+    isMiningActive: { type: Boolean, default: false }
   },
 
+  // 🎁 Reward History
   rewardHistory: [
     {
       date: { type: Date, default: Date.now },
@@ -59,6 +67,7 @@ const userSchema = new mongoose.Schema({
     }
   ],
 
+  // 📈 Staking System
   stakingEntries: [
     {
       amount: Number,
@@ -73,6 +82,7 @@ const userSchema = new mongoose.Schema({
   totalStaked: { type: Number, default: 0 },
   firstStakeRewarded: { type: Boolean, default: false },
 
+  // 🛠️ Admin Logs
   adminLogs: [
     {
       action: String,
@@ -82,10 +92,12 @@ const userSchema = new mongoose.Schema({
     }
   ],
 
+  // 📧 Email Verification
   isVerified: { type: Boolean, default: false },
   emailToken: String,
   emailCode: String,
 
+  // 💸 Deposit History
   depositHistory: [
     {
       txId: String,
@@ -95,6 +107,7 @@ const userSchema = new mongoose.Schema({
     }
   ],
 
+  // 📅 Account Created
   createdAt: { type: Date, default: Date.now }
 });
 
