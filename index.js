@@ -565,25 +565,32 @@ app.post('/mine/claim', authenticate, async (req, res) => {
 
     const now = new Date();
     const sessionStart = user.mining.sessionStart;
-    const lastClaim = user.mining.lastClaimed || new Date(0);
+    const lastClaim = user.mining.lastClaimed || sessionStart;
 
     if (!sessionStart) {
-      return res.status(400).json({ message: 'Mining session not started.' });
+      return res.status(400).json({ message: '❌ Mining session not started.' });
     }
 
-    const elapsedMs = now - sessionStart;
-    const maxMiningDurationMs = 3 * 60 * 60 * 1000;
+    const maxMiningDurationMs = 3 * 60 * 60 * 1000; // 3 hours
+    const elapsedTotalMs = now - sessionStart;
+    const elapsedSinceLastClaimMs = now - lastClaim;
 
-    if (elapsedMs < maxMiningDurationMs) {
-      const remaining = ((maxMiningDurationMs - elapsedMs) / 1000 / 60).toFixed(1);
-      return res.status(400).json({
-        message: `You need to mine for full 3 hours. ${remaining} minutes remaining.`
-      });
+    if (elapsedTotalMs > maxMiningDurationMs) {
+      // ❌ Auto-stop after 3h
+      user.mining.sessionStart = null;
+      user.isMiningActive = false;
+      await user.save();
+      return res.status(400).json({ message: '⛔ Mining session expired after 3 hours.' });
+    }
+
+    if (elapsedSinceLastClaimMs < 60 * 1000) {
+      return res.status(400).json({ message: '⏳ Please wait 1 minute between claims.' });
     }
 
     const rewardPerMs = 0.00025 / maxMiningDurationMs;
-    const reward = rewardPerMs * maxMiningDurationMs;
+    const earned = rewardPerMs * elapsedSinceLastClaimMs;
 
+    // ✅ Optional: Boost calculation
     const verifiedReferrals = await User.find({
       username: { $in: user.referrals.map(r => r.username) },
       'kyc.status': 'approved',
@@ -591,16 +598,11 @@ app.post('/mine/claim', authenticate, async (req, res) => {
     });
 
     const boostPercent = 0.05 * verifiedReferrals.length;
-    const boostedReward = reward * boostPercent;
-    const totalReward = reward + boostedReward;
-
-    // 🧠 Debug logs
-    console.log(`[CLAIM] User: ${user.username}`);
-    console.log(`Reward: ${reward.toFixed(6)} | Boost: ${boostPercent * 100}% | Final: ${totalReward.toFixed(6)}`);
+    const boostedReward = earned * boostPercent;
+    const totalReward = earned + boostedReward;
 
     user.balance = (user.balance || 0) + totalReward;
     user.mining.lastClaimed = now;
-    user.mining.sessionStart = null;
 
     user.rewardHistory.push({
       date: now,
@@ -613,14 +615,14 @@ app.post('/mine/claim', authenticate, async (req, res) => {
 
     res.json({
       success: true,
-      message: `You mined ${totalReward.toFixed(6)} SOL (Boost: ${boostPercent * 100}%)!`,
-      earned: totalReward.toFixed(6),
-      balance: user.balance
+      message: `✅ Claimed ${totalReward.toFixed(8)} SOL (Boost: ${boostPercent * 100}%)`,
+      earned: totalReward.toFixed(8),
+      balance: user.balance.toFixed(8)
     });
 
   } catch (err) {
-    console.error("⛔ Error in mining claim:", err);
-    res.status(500).json({ message: 'Error during claim' });
+    console.error("⛔ Error in /mine/claim:", err);
+    res.status(500).json({ message: '⚠️ Error during claim' });
   }
 });
 
