@@ -164,6 +164,16 @@ app.post('/register', async (req, res) => {
   }
 });
 
+
+// ⚠️ Temporary - use only for fixing stuck state
+app.post('/mine/reset', authenticate, async (req, res) => {
+  const user = await User.findById(req.user.id);
+  user.mining.sessionStart = null;
+  user.mining.isMiningActive = false;
+  await user.save();
+  res.json({ success: true, message: '✅ Mining state reset.' });
+});
+
 // ✅ POST /verify-code
 app.post('/verify-code', async (req, res) => {
   try {
