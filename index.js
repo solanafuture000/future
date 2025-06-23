@@ -282,12 +282,12 @@ app.get('/profile', authenticate, async (req, res) => {
     const user = await User.findById(req.user.id).lean();
     if (!user) return res.status(404).json({ success: false, message: "User not found" });
 
-    // ✅ Total referral reward from reward history
+    // ✅ Total referral reward from history
     const referralReward = (user.rewardHistory || [])
       .filter(r => r.type.toLowerCase().includes("referral") && r.status === "Success")
       .reduce((sum, r) => sum + r.amount, 0);
 
-    // ✅ Total staking reward from reward history
+    // ✅ Total staking reward from history
     const stakingReward = (user.rewardHistory || [])
       .filter(r => r.type.toLowerCase().includes("staking") && r.status === "Success")
       .reduce((sum, r) => sum + r.amount, 0);
@@ -316,11 +316,6 @@ app.get('/profile', authenticate, async (req, res) => {
           verifiedAt: user.kyc?.verifiedAt || null
         },
 
-        mining: {
-          sessionStart: user.mining?.sessionStart || null,
-          isMiningActive: user.mining?.isMiningActive || false
-        },
-
         rewardHistory: user.rewardHistory || []
       }
     });
@@ -329,6 +324,7 @@ app.get('/profile', authenticate, async (req, res) => {
     res.status(500).json({ success: false, message: "Server error" });
   }
 });
+
 
 
 // ✅ WITHDRAW Route (Updated)
