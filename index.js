@@ -562,7 +562,7 @@ app.post('/mine/claim', authenticate, async (req, res) => {
     if (elapsedTotalMs > maxMiningDurationMs) {
       // ❌ Auto-stop after 3h
       user.mining.sessionStart = null;
-      user.isMiningActive = false;
+     user.mining.isMiningActive = false; // ✅
       await user.save();
       return res.status(400).json({ message: '⛔ Mining session expired after 3 hours.' });
     }
