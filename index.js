@@ -282,16 +282,16 @@ app.get('/profile', authenticate, async (req, res) => {
     const user = await User.findById(req.user.id).lean();
     if (!user) return res.status(404).json({ success: false, message: "User not found" });
 
-    // ✅ Total referral reward from history
+    // Calculate referral & staking rewards from rewardHistory
     const referralReward = (user.rewardHistory || [])
       .filter(r => r.type.toLowerCase().includes("referral") && r.status === "Success")
       .reduce((sum, r) => sum + r.amount, 0);
 
-    // ✅ Total staking reward from history
     const stakingReward = (user.rewardHistory || [])
       .filter(r => r.type.toLowerCase().includes("staking") && r.status === "Success")
       .reduce((sum, r) => sum + r.amount, 0);
 
+    // ✅ Send back exactly what frontend expects
     res.json({
       success: true,
       user: {
@@ -316,7 +316,12 @@ app.get('/profile', authenticate, async (req, res) => {
           verifiedAt: user.kyc?.verifiedAt || null
         },
 
-        rewardHistory: user.rewardHistory || []
+        rewardHistory: user.rewardHistory || [],
+
+        mining: {
+          sessionStart: user.mining?.sessionStart || null,
+          isMiningActive: user.mining?.isMiningActive || false
+        }
       }
     });
   } catch (err) {
