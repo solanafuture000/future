@@ -575,7 +575,6 @@ app.post('/stake/claim', authenticate, async (req, res) => {
 });
 
 
-// ✅ Unstake Route - With earned reward after 7 days
 app.post('/unstake', authenticate, async (req, res) => {
   const user = await User.findById(req.user.id);
   if (!user) return res.status(404).json({ message: 'User not found' });
@@ -583,29 +582,48 @@ app.post('/unstake', authenticate, async (req, res) => {
   const now = new Date();
   let unstakedAmount = 0;
   let totalRewardAdded = 0;
+  let totalPenalty = 0;
+  let anyUnstaked = false;
 
   user.stakingEntries.forEach(entry => {
-    const days = (now - new Date(entry.startDate)) / (1000 * 60 * 60 * 24);
-
-    if (!entry.isUnstaked && days >= 7) {
+    if (!entry.isUnstaked) {
+      const days = (now - new Date(entry.startDate)) / (1000 * 60 * 60 * 24);
       entry.isUnstaked = true;
       entry.unstakedAt = now;
+      anyUnstaked = true;
 
-      // ✅ Add staked amount back
+      // ✅ Always return the original stake
       user.balance += entry.amount;
       unstakedAmount += entry.amount;
 
-      // ✅ Also add earned reward to balance
-      if (entry.rewardEarned && entry.rewardEarned > 0) {
-        user.balance += entry.rewardEarned;
-        totalRewardAdded += entry.rewardEarned;
+      if (days >= 7) {
+        // ✅ Eligible for full reward
+        if (entry.rewardEarned && entry.rewardEarned > 0) {
+          user.balance += entry.rewardEarned;
+          totalRewardAdded += entry.rewardEarned;
 
-        user.rewardHistory.push({
-          type: 'Stake Reward Collected on Unstake',
-          amount: entry.rewardEarned,
-          date: now,
-          status: 'Success'
-        });
+          user.rewardHistory.push({
+            type: 'Stake Reward Collected on Unstake',
+            amount: entry.rewardEarned,
+            date: now,
+            status: 'Success'
+          });
+        }
+      } else {
+        // ⛔ Penalty: Remove reward from balance if early unstake
+        if (entry.rewardEarned && entry.rewardEarned > 0) {
+          user.balance -= entry.rewardEarned;
+          totalPenalty += entry.rewardEarned;
+
+          user.rewardHistory.push({
+            type: 'Early Unstake Penalty',
+            amount: -entry.rewardEarned,
+            date: now,
+            status: 'Success'
+          });
+
+          entry.rewardEarned = 0;
+        }
       }
 
       user.rewardHistory.push({
@@ -617,16 +635,18 @@ app.post('/unstake', authenticate, async (req, res) => {
     }
   });
 
-  if (unstakedAmount === 0) {
-    return res.status(400).json({ message: '❌ No stake available for unstaking yet (wait 7 days)' });
+  if (!anyUnstaked) {
+    return res.status(400).json({ message: '❌ No stake entries available to unstake.' });
   }
 
   await user.save();
 
-  return res.json({
+  res.json({
     success: true,
-    message: `✅ Unstaked ${unstakedAmount} SOL + ${totalRewardAdded.toFixed(4)} SOL reward.`,
-    newBalance: user.balance
+    message: `✅ Unstaked ${unstakedAmount} SOL` +
+             (totalRewardAdded > 0 ? ` + ${totalRewardAdded.toFixed(4)} SOL reward` : '') +
+             (totalPenalty > 0 ? ` (-${totalPenalty.toFixed(4)} SOL penalty for early unstake)` : ''),
+    balance: user.balance.toFixed(4)
   });
 });
 
