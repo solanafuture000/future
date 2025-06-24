@@ -519,7 +519,7 @@ app.post('/stake', authenticate, async (req, res) => {
 });
 
 
-// ✅ Claim Daily Staking Rewards (4%) for All Active Stakes
+// ✅ Claim 1% per 6 hours (up to 4% in 24h) for all active stakes
 app.post('/stake/claim', authenticate, async (req, res) => {
   const user = await User.findById(req.user.id);
   if (!user) return res.status(404).json({ message: 'User not found' });
@@ -531,18 +531,27 @@ app.post('/stake/claim', authenticate, async (req, res) => {
   for (let stake of user.stakingEntries) {
     if (stake.isUnstaked) continue;
 
-    const lastClaimed = new Date(stake.lastClaimed);
-    const hoursDiff = (now - lastClaimed) / (1000 * 60 * 60);
-    if (hoursDiff >= 24) {
-      const reward = stake.amount * 0.04;
-      stake.lastClaimed = now;
+    const lastClaimed = new Date(stake.lastClaimed || stake.startDate);
+    const elapsedMs = now - lastClaimed;
+
+    const sixHourMs = 6 * 60 * 60 * 1000;
+    const maxClaims = 4; // Max 4 per 24h = 4%
+    const rewardPerClaim = stake.amount * 0.01;
+
+    const claimableCount = Math.floor(elapsedMs / sixHourMs);
+    const allowedClaims = Math.min(claimableCount, maxClaims); // Don't exceed 4 claims (4%)
+
+    if (allowedClaims > 0) {
+      const reward = rewardPerClaim * allowedClaims;
+
+      stake.lastClaimed = new Date(lastClaimed.getTime() + (allowedClaims * sixHourMs));
       stake.rewardEarned += reward;
       user.balance += reward;
       totalReward += reward;
       anyClaimed = true;
 
       user.rewardHistory.push({
-        type: 'Staking Daily Reward',
+        type: 'Staking',
         amount: reward,
         date: now,
         status: 'Success'
@@ -551,13 +560,18 @@ app.post('/stake/claim', authenticate, async (req, res) => {
   }
 
   if (!anyClaimed) {
-    return res.status(400).json({ message: '⏱️ Claim allowed once every 24 hours per active stake.' });
+    return res.status(400).json({ message: '⏱️ You can only claim 1% every 6 hours per stake. No stake eligible yet.' });
   }
 
   user.stakingReward += totalReward;
   await user.save();
 
-  res.json({ success: true, message: `✅ Claimed ${totalReward.toFixed(4)} SOL from all eligible stakes.` });
+  res.json({
+    success: true,
+    message: `✅ Claimed ${totalReward.toFixed(4)} SOL staking reward.`,
+    amount: totalReward.toFixed(4),
+    balance: user.balance.toFixed(4)
+  });
 });
 
 
