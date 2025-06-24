@@ -165,15 +165,6 @@ app.post('/register', async (req, res) => {
 });
 
 
-// ⚠️ Temporary - use only for fixing stuck state
-app.post('/mine/reset', authenticate, async (req, res) => {
-  const user = await User.findById(req.user.id);
-  user.mining.sessionStart = null;
-  user.mining.isMiningActive = false;
-  await user.save();
-  res.json({ success: true, message: '✅ Mining state reset.' });
-});
-
 // ✅ POST /verify-code
 app.post('/verify-code', async (req, res) => {
   try {
@@ -232,13 +223,16 @@ app.post('/login', async (req, res) => {
 });
 
 
+// ✅ START MINING
 app.post('/mine/start', authenticate, async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
     if (!user) return res.status(404).json({ message: 'User not found' });
 
-    user.mining.sessionStart = new Date();
-    user.mining.lastClaimed = new Date();
+    const now = new Date();
+
+    user.mining.sessionStart = now;
+    user.mining.lastClaimed = now;
     user.mining.isMiningActive = true;
 
     await user.save();
@@ -581,6 +575,7 @@ app.post('/unstake', authenticate, async (req, res) => {
 });
 
 
+// ✅ CLAIM REWARD
 app.post('/mine/claim', authenticate, async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
@@ -590,30 +585,34 @@ app.post('/mine/claim', authenticate, async (req, res) => {
     const sessionStart = user.mining.sessionStart;
     const lastClaim = user.mining.lastClaimed || sessionStart;
 
-    if (!sessionStart) {
+    // ❌ No mining session
+    if (!sessionStart || !user.mining.isMiningActive) {
       return res.status(400).json({ message: '❌ Mining session not started.' });
     }
 
     const maxMiningDurationMs = 3 * 60 * 60 * 1000; // 3 hours
-    const elapsedTotalMs = now - sessionStart;
-    const elapsedSinceLastClaimMs = now - lastClaim;
+    const elapsedSinceStart = now - new Date(sessionStart);
 
-    if (elapsedTotalMs > maxMiningDurationMs) {
-      // ❌ Auto-stop after 3h
+    // ⛔ Auto-stop mining session if expired
+    if (elapsedSinceStart > maxMiningDurationMs) {
+      user.mining.isMiningActive = false;
       user.mining.sessionStart = null;
-     user.mining.isMiningActive = false; // ✅
       await user.save();
       return res.status(400).json({ message: '⛔ Mining session expired after 3 hours.' });
     }
 
-    if (elapsedSinceLastClaimMs < 60 * 1000) {
-      return res.status(400).json({ message: '⏳ Please wait 1 minute between claims.' });
+    const elapsedSinceLastClaimMs = now - new Date(lastClaim);
+    const minimumClaimGap = 10 * 1000; // 10 seconds
+
+    if (elapsedSinceLastClaimMs < minimumClaimGap) {
+      return res.status(400).json({ message: `⏳ Please wait at least 10 seconds between claims.` });
     }
 
-    const rewardPerMs = 0.00025 / maxMiningDurationMs;
+    // ⚙️ Calculate time-based reward
+    const rewardPerMs = 0.00025 / maxMiningDurationMs; // total 0.00025 SOL in 3 hours
     const earned = rewardPerMs * elapsedSinceLastClaimMs;
 
-    // ✅ Optional: Boost calculation
+    // 🔥 Optional Boost
     const verifiedReferrals = await User.find({
       username: { $in: user.referrals.map(r => r.username) },
       'kyc.status': 'approved',
@@ -624,8 +623,11 @@ app.post('/mine/claim', authenticate, async (req, res) => {
     const boostedReward = earned * boostPercent;
     const totalReward = earned + boostedReward;
 
+    // 💾 Update User
     user.balance = (user.balance || 0) + totalReward;
     user.mining.lastClaimed = now;
+    user.mining.sessionStart = now; // 🔁 Reset 3-hour timer
+    user.mining.isMiningActive = true;
 
     user.rewardHistory.push({
       date: now,
