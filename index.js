@@ -312,51 +312,93 @@ app.get('/leaderboard', async (req, res) => {
 
 app.get('/profile', authenticate, async (req, res) => {
   try {
-    const user = await User.findById(req.user.id).lean();
+    const user = await User.findById(req.user.id);
     if (!user) return res.status(404).json({ success: false, message: "User not found" });
 
-    // Calculate referral & staking rewards from rewardHistory
-    const referralReward = (user.rewardHistory || [])
+    const now = new Date();
+    let totalStakingReward = 0;
+
+    for (let entry of user.stakingEntries) {
+      if (!entry.isUnstaked) {
+        const lastClaimed = new Date(entry.lastClaimed || entry.startDate);
+        const elapsedMs = now - lastClaimed;
+
+        const sixHourMs = 6 * 60 * 60 * 1000;
+        const twentyFourHourMs = 24 * 60 * 60 * 1000;
+
+        const maxClaims = 4; // 1% * 4 = 4%
+        const rewardPerClaim = entry.amount * 0.01;
+
+        const totalClaims = Math.floor(elapsedMs / sixHourMs);
+        const allowedClaims = Math.min(totalClaims, maxClaims); // cap to 4 claims (4%)
+
+        if (allowedClaims > 0) {
+          const reward = rewardPerClaim * allowedClaims;
+          const timeToAdd = allowedClaims * sixHourMs;
+
+          entry.lastClaimed = new Date(lastClaimed.getTime() + timeToAdd);
+          entry.rewardEarned = (entry.rewardEarned || 0) + reward;
+          user.balance += reward;
+          totalStakingReward += reward;
+
+          user.rewardHistory.push({
+            date: now,
+            type: 'Staking',
+            amount: reward,
+            status: 'Success'
+          });
+        }
+      }
+    }
+
+    if (totalStakingReward > 0) {
+      await user.save();
+    }
+
+    // Prepare final clean user object for frontend
+    const leanUser = user.toObject();
+
+    const referralReward = (leanUser.rewardHistory || [])
       .filter(r => r.type.toLowerCase().includes("referral") && r.status === "Success")
       .reduce((sum, r) => sum + r.amount, 0);
 
-    const stakingReward = (user.rewardHistory || [])
+    const stakingReward = (leanUser.rewardHistory || [])
       .filter(r => r.type.toLowerCase().includes("staking") && r.status === "Success")
       .reduce((sum, r) => sum + r.amount, 0);
 
-    // ✅ Send back exactly what frontend expects
     res.json({
       success: true,
       user: {
-        username: user.username,
-        email: user.email,
-        balance: parseFloat((user.balance || 0).toFixed(5)),
+        username: leanUser.username,
+        email: leanUser.email,
+        balance: parseFloat((leanUser.balance || 0).toFixed(5)),
         referralReward: parseFloat(referralReward.toFixed(5)),
         stakingReward: parseFloat(stakingReward.toFixed(5)),
-        totalStaked: user.totalStaked || 0,
+        totalStaked: leanUser.totalStaked || 0,
 
         solanaWallet: {
-          publicKey: user.solanaWallet?.publicKey || ""
+          publicKey: leanUser.solanaWallet?.publicKey || ""
         },
 
-        referredBy: user.referredBy || null,
-        referrals: user.referrals || [],
+        referredBy: leanUser.referredBy || null,
+        referrals: leanUser.referrals || [],
 
         kyc: {
-          status: user.kyc?.status || "not_submitted",
-          imagePath: user.kyc?.imagePath || null,
-          submittedAt: user.kyc?.submittedAt || null,
-          verifiedAt: user.kyc?.verifiedAt || null
+          status: leanUser.kyc?.status || "not_submitted",
+          imagePath: leanUser.kyc?.imagePath || null,
+          submittedAt: leanUser.kyc?.submittedAt || null,
+          verifiedAt: leanUser.kyc?.verifiedAt || null
         },
 
-        rewardHistory: user.rewardHistory || [],
+        rewardHistory: leanUser.rewardHistory || [],
 
         mining: {
-          sessionStart: user.mining?.sessionStart || null,
-          isMiningActive: user.mining?.isMiningActive || false
+          sessionStart: leanUser.mining?.sessionStart || null,
+          isMiningActive: leanUser.mining?.isMiningActive || false
         }
       }
     });
+
   } catch (err) {
     console.error("Profile route error:", err);
     res.status(500).json({ success: false, message: "Server error" });
