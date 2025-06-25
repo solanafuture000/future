@@ -24,7 +24,7 @@ const submitKYC = async (req, res) => {
     user.kyc.status = 'pending';
     await user.save();
 
-    res.json({ success: true, message: '✅ Selfie with CNIC submitted. Admin will review your KYC.' });
+    res.json({ success: true, message: '✅ Selfie with CNIC submitted.  SOLANA FUTURE AI will review your KYC.' });
   } catch (error) {
     console.error('KYC Submit Error:', error);
     res.status(500).json({ message: '❌ Server error during KYC submission' });
@@ -50,9 +50,6 @@ const approveKYC = async (req, res) => {
     const rewardAmount = 0.01;
     user.balance = (user.balance || 0) + rewardAmount;
 
-    // Debug
-    console.log(`[DEBUG] Before Save: ${user.username} balance = ${user.balance}`);
-
     user.rewardHistory.push({
       type: 'KYC Reward',
       amount: rewardAmount,
@@ -62,11 +59,13 @@ const approveKYC = async (req, res) => {
 
     await user.save();
 
-    console.log(`[DEBUG] After Save: ${user.username} balance updated.`);
-
     // ✅ Referral reward
     if (user.referredBy) {
-      const referrer = await User.findById(user.referredBy);
+      const referrer =
+        typeof user.referredBy === 'string'
+          ? await User.findOne({ username: user.referredBy })
+          : await User.findById(user.referredBy);
+
       if (referrer) {
         const referralEntry = referrer.referrals.find(
           r => r.username === user.username && !r.rewarded
