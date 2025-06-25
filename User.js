@@ -19,7 +19,7 @@ const userSchema = new mongoose.Schema({
   isAdmin: { type: Boolean, default: false },
 
   // 🔗 Referrals
-  referredBy: { type: Schema.Types.ObjectId, ref: 'User', default: null },
+  referredBy: { type: String, default: null }, // ⬅️ Storing username now
   referralRewardClaimed: { type: Boolean, default: false },
   referrals: [
     {
