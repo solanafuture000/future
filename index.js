@@ -134,17 +134,24 @@ app.post('/register', async (req, res) => {
       referredBy: null,
       balance: 0,
       mining: { lastClaimed: new Date(0) },
-        kyc: { status: 'not_submitted' }, // ✅ Correct
+      kyc: { status: 'not_submitted' },
       referrals: [],
       isVerified: false,
       emailCode
     });
 
+    // ✅ Handle referral (store username, not _id)
     if (referredBy) {
       const referrer = await User.findOne({ username: referredBy.trim() });
       if (referrer) {
-        newUser.referredBy = referrer._id;
-        referrer.referrals.push({ username: newUser.username });
+        newUser.referredBy = referrer.username; // ✅ store username, not _id
+
+        referrer.referrals.push({
+          username: newUser.username,
+          referredAt: new Date(),
+          rewarded: false
+        });
+
         await referrer.save();
       }
     }
@@ -164,6 +171,7 @@ app.post('/register', async (req, res) => {
     res.status(500).json({ success: false, message: 'Server error' });
   }
 });
+
 
 
 // ✅ POST /verify-code
