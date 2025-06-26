@@ -17,9 +17,11 @@ const userSchema = new mongoose.Schema({
   balance: { type: Number, default: 0 },
   referralReward: { type: Number, default: 0 },
   isAdmin: { type: Boolean, default: false },
+  totalDeposit: { type: Number, default: 0 },   // ✅ ADDED
+  totalWithdraw: { type: Number, default: 0 },  // ✅ ADDED
 
   // 🔗 Referrals
-  referredBy: { type: String, default: null }, // ⬅️ Storing username now
+  referredBy: { type: String, default: null }, // username of referrer
   referralRewardClaimed: { type: Boolean, default: false },
   referrals: [
     {
