@@ -100,19 +100,6 @@ function generateCode() {
   return Math.floor(10000000 + Math.random() * 90000000).toString();
 }
 
-app.get('/my-withdraw', authenticate, async (req, res) => {
-  const user = await User.findById(req.user.id);
-  if (!user) return res.status(404).json({ message: 'User not found' });
-
-  res.json({ totalWithdraw: user.totalWithdraw || 0 });
-});
-
-app.get('/my-deposit', authenticate, async (req, res) => {
-  const user = await User.findById(req.user.id);
-  if (!user) return res.status(404).json({ message: 'User not found' });
-
-  res.json({ totalDeposit: user.totalDeposit || 0 });
-});
 
 // ✅ Update register route to include code
 app.post('/register', async (req, res) => {
