@@ -24,14 +24,14 @@ const submitKYC = async (req, res) => {
     user.kyc.status = 'pending';
     await user.save();
 
-    res.json({ success: true, message: '✅ Selfie with CNIC submitted.  SOLANA FUTURE AI will review your KYC.' });
+    res.json({ success: true, message: '✅ Selfie with CNIC submitted. SOLANA FUTURE AI will review your KYC.' });
   } catch (error) {
     console.error('KYC Submit Error:', error);
     res.status(500).json({ message: '❌ Server error during KYC submission' });
   }
 };
 
-// ✅ KYC Approve Controller (Fixed)
+// ✅ KYC Approve Controller (Final)
 const approveKYC = async (req, res) => {
   try {
     const { userId } = req.params;
@@ -46,7 +46,7 @@ const approveKYC = async (req, res) => {
     user.kyc.verifiedAt = new Date();
     user.kyc.approvedByAdmin = true;
 
-    // ✅ KYC Reward
+    // ✅ KYC reward to user
     const rewardAmount = 0.01;
     user.balance = (user.balance || 0) + rewardAmount;
 
@@ -57,10 +57,8 @@ const approveKYC = async (req, res) => {
       status: 'Success'
     });
 
-    await user.save();
-
-    // ✅ Referral reward
-    if (user.referredBy) {
+    // ✅ Referral reward to referrer
+    if (user.referredBy && !user.referralRewardClaimed) {
       const referrer =
         typeof user.referredBy === 'string'
           ? await User.findOne({ username: user.referredBy })
@@ -84,9 +82,13 @@ const approveKYC = async (req, res) => {
 
           referralEntry.rewarded = true;
           await referrer.save();
+
+          user.referralRewardClaimed = true; // ✅ important flag
         }
       }
     }
+
+    await user.save();
 
     res.json({ success: true, message: '✅ KYC approved and reward given.' });
   } catch (error) {
