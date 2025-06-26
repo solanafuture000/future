@@ -827,6 +827,30 @@ app.get('/unstake/list', authenticate, async (req, res) => {
   });
 });
 
+app.get('/my-deposit', authenticate, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select('totalDeposit');
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    res.json({ totalDeposit: user.totalDeposit || 0 });
+  } catch (err) {
+    console.error('Error fetching deposit:', err);
+    res.status(500).json({ message: "Failed to fetch deposit data" });
+  }
+});
+
+app.get('/my-withdraw', authenticate, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select('totalWithdraw');
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    res.json({ totalWithdraw: user.totalWithdraw || 0 });
+  } catch (err) {
+    console.error('Error fetching withdraw:', err);
+    res.status(500).json({ message: "Failed to fetch withdraw data" });
+  }
+});
+
 
 const PORT = process.env.PORT || 3005;
 app.listen(PORT, () => {
