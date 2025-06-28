@@ -920,6 +920,27 @@ app.post('/reset-password', async (req, res) => {
   }
 });
 
+app.post('/send-reset-code', async (req, res) => {
+  const { email } = req.body;
+  if (!email) return res.status(400).json({ message: 'Email is required' });
+
+  const user = await User.findOne({ email });
+  if (!user) return res.status(404).json({ message: 'User not found' });
+
+  const code = Math.floor(100000 + Math.random() * 900000).toString();
+  user.emailCode = code;
+  await user.save();
+
+  // Email sending logic (you must have nodemailer configured)
+  await transporter.sendMail({
+    to: user.email,
+    subject: "Your Password Reset Code",
+    html: `<h3>Your verification code is: <b>${code}</b></h3>`
+  });
+
+  return res.status(200).json({ message: 'Verification code sent to email' });
+});
+
 
 
 const PORT = process.env.PORT || 3005;
