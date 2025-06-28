@@ -859,6 +859,68 @@ app.get('/my-withdraw', authenticate, async (req, res) => {
   }
 });
 
+app.post('/forgot-password', async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email)
+      return res.status(400).json({ success: false, message: "Email is required" });
+
+    const user = await User.findOne({ email });
+
+    if (!user)
+      return res.status(404).json({ success: false, message: "User not found" });
+
+    const resetCode = Math.floor(100000 + Math.random() * 900000).toString();
+    user.resetCode = resetCode;
+    user.resetCodeExpires = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes expiry
+    await user.save();
+
+    await transporter.sendMail({
+      from: `Solana App <${process.env.EMAIL_USER}>`,
+      to: email,
+      subject: 'Password Reset Code',
+      html: `<p>Your password reset code is: <b>${resetCode}</b></p><p>This code will expire in 15 minutes.</p>`
+    });
+
+    res.json({ success: true, message: '🔐 Reset code sent to your email' });
+
+  } catch (err) {
+    console.error('Forgot Password error:', err);
+    res.status(500).json({ success: false, message: 'Server error while sending reset code' });
+  }
+});
+
+app.post('/reset-password', async (req, res) => {
+  try {
+    const { email, code, newPassword } = req.body;
+
+    if (!email || !code || !newPassword)
+      return res.status(400).json({ success: false, message: "All fields required" });
+
+    const user = await User.findOne({ email });
+
+    if (!user || user.resetCode !== code)
+      return res.status(400).json({ success: false, message: "Invalid code or email" });
+
+    if (new Date() > new Date(user.resetCodeExpires))
+      return res.status(400).json({ success: false, message: "Code expired. Request a new one." });
+
+    const hashed = await bcrypt.hash(newPassword, 10);
+    user.password = hashed;
+    user.resetCode = undefined;
+    user.resetCodeExpires = undefined;
+    await user.save();
+
+    res.json({ success: true, message: "✅ Password reset successfully" });
+
+  } catch (err) {
+    console.error('Reset Password error:', err);
+    res.status(500).json({ success: false, message: 'Server error while resetting password' });
+  }
+});
+
+
 
 const PORT = process.env.PORT || 3005;
 app.listen(PORT, () => {
