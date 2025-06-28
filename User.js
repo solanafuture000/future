@@ -17,8 +17,8 @@ const userSchema = new mongoose.Schema({
   balance: { type: Number, default: 0 },
   referralReward: { type: Number, default: 0 },
   isAdmin: { type: Boolean, default: false },
-  totalDeposit: { type: Number, default: 0 },   // ✅ ADDED
-  totalWithdraw: { type: Number, default: 0 },  // ✅ ADDED
+  totalDeposit: { type: Number, default: 0 },
+  totalWithdraw: { type: Number, default: 0 },
 
   // 🔗 Referrals
   referredBy: { type: String, default: null }, // username of referrer
@@ -108,6 +108,10 @@ const userSchema = new mongoose.Schema({
       receivedAt: Date
     }
   ],
+
+  // 🔐 Forget Password Fields
+  resetCode: String,
+  resetCodeExpires: Date,
 
   // 📅 Account Created
   createdAt: { type: Date, default: Date.now }
