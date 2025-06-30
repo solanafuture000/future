@@ -941,6 +941,25 @@ app.post('/send-reset-code', async (req, res) => {
   return res.status(200).json({ message: 'Verification code sent to email' });
 });
 
+// ✅ GET /admin/active-users (last 24h)
+app.get('/admin/active-users', authenticate, async (req, res) => {
+  try {
+    const now = new Date();
+    const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+
+    const activeUsers = await User.find({ lastActiveAt: { $gte: oneDayAgo } })
+      .select('username email lastActiveAt');
+
+    res.json({
+      success: true,
+      count: activeUsers.length,
+      users: activeUsers
+    });
+  } catch (err) {
+    console.error('Active user route error:', err);
+    res.status(500).json({ success: false, message: 'Server error fetching active users' });
+  }
+});
 
 
 const PORT = process.env.PORT || 3005;
