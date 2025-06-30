@@ -217,7 +217,10 @@ app.post('/login', async (req, res) => {
     if (!isMatch)
       return res.status(400).json({ success: false, message: 'Invalid credentials' });
 
-    // ✅ Create JWT token
+    // ✅ Update lastActiveAt on successful login
+    user.lastActiveAt = new Date();
+    await user.save();
+
     const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '7d' });
 
     res.json({
