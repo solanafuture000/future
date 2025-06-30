@@ -21,7 +21,7 @@ const userSchema = new mongoose.Schema({
   totalWithdraw: { type: Number, default: 0 },
 
   // 🔗 Referrals
-  referredBy: { type: String, default: null }, // username of referrer
+  referredBy: { type: String, default: null },
   referralRewardClaimed: { type: Boolean, default: false },
   referrals: [
     {
@@ -112,6 +112,9 @@ const userSchema = new mongoose.Schema({
   // 🔐 Forget Password Fields
   resetCode: String,
   resetCodeExpires: Date,
+
+  // 🟢 Last Active Timestamp
+  lastActiveAt: { type: Date, default: Date.now },
 
   // 📅 Account Created
   createdAt: { type: Date, default: Date.now }
