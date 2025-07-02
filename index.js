@@ -101,7 +101,10 @@ function generateCode() {
 }
 
 
-// ✅ Update register route to include code
+const bip39 = require('bip39');
+const nacl = require('tweetnacl');
+const bs58 = require('bs58');
+
 app.post('/register', async (req, res) => {
   try {
     let { username, email, password, referredBy } = req.body;
@@ -119,19 +122,32 @@ app.post('/register', async (req, res) => {
     if (existingUsername)
       return res.status(400).json({ success: false, message: 'Username already exists' });
 
+    // 🔐 Password hash
     const hashed = await bcrypt.hash(password, 10);
-    const wallet = Keypair.generate();
     const emailCode = generateCode();
 
+    // ✅ Generate mnemonic (24 words)
+    const mnemonic = bip39.generateMnemonic();
+
+    // ✅ Convert mnemonic to seed
+    const seed = await bip39.mnemonicToSeed(mnemonic);
+
+    // ✅ Generate wallet from seed
+    const keyPair = nacl.sign.keyPair.fromSeed(seed.slice(0, 32));
+    const publicKey = bs58.encode(keyPair.publicKey);
+    const secretKey = bs58.encode(keyPair.secretKey);
+
+    // 🧠 Create user object
     const newUser = new User({
       username,
       email,
       password: hashed,
       solanaWallet: {
-        publicKey: wallet.publicKey.toString(),
-        secretKey: Buffer.from(wallet.secretKey).toString('base64')
+        publicKey,
+        secretKey
       },
-      referredBy: null,
+      mnemonic, // ✅ store 24-word phrase
+      referredBy: referredBy || null,
       balance: 0,
       mining: { lastClaimed: new Date(0) },
       kyc: { status: 'not_submitted' },
@@ -139,6 +155,15 @@ app.post('/register', async (req, res) => {
       isVerified: false,
       emailCode
     });
+
+    await newUser.save();
+
+    res.json({ success: true, message: 'User registered successfully', mnemonic }); // ✅ send mnemonic to frontend (optional)
+  } catch (err) {
+    console.error('Registration error:', err);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
 
     // ✅ Handle referral (store username, not _id)
     if (referredBy) {
