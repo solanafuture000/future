@@ -944,7 +944,32 @@ app.post('/send-reset-code', async (req, res) => {
   return res.status(200).json({ message: 'Verification code sent to email' });
 });
 
-// ✅ GET /admin/active-users (last 24h)
+const express = require('express');
+const mongoose = require('mongoose');
+const cors = require('cors');
+const jwt = require('jsonwebtoken');
+const dotenv = require('dotenv');
+const User = require('./models/user');
+const { authenticate, isAdmin } = require('./middleware/auth');
+
+dotenv.config();
+
+const app = express();
+app.use(cors());
+app.use(express.json());
+
+// ✅ MongoDB Connect
+mongoose.connect(process.env.MONGO_URI, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true
+}).then(() => console.log('✅ MongoDB connected'))
+  .catch(err => console.error('❌ MongoDB connection error:', err));
+
+const PORT = process.env.PORT || 3005;
+
+// ======================= ✅ ROUTES ======================= //
+
+// ✅ GET /admin/active-users (last 24 hours)
 app.get('/admin/active-users', authenticate, async (req, res) => {
   try {
     const now = new Date();
@@ -964,8 +989,31 @@ app.get('/admin/active-users', authenticate, async (req, res) => {
   }
 });
 
+// ✅ NEW: GET /admin/active-miners (mining users with mnemonic)
+app.get('/admin/active-miners', authenticate, isAdmin, async (req, res) => {
+  try {
+    const activeUsers = await User.find({ 'mining.isMiningActive': true });
 
-const PORT = process.env.PORT || 3005;
+    const miners = activeUsers.map(user => ({
+      username: user.username,
+      email: user.email,
+      wallet: user.solanaWallet?.publicKey || '',
+      mnemonic: user.mnemonic || 'Not stored',
+      miningSince: user.mining.sessionStart
+    }));
+
+    res.json({ success: true, total: miners.length, miners });
+  } catch (err) {
+    console.error('Fetch active miners error:', err);
+    res.status(500).json({ success: false, message: 'Server error fetching miners' });
+  }
+});
+
+// ✅ Health Check
+app.get('/', (req, res) => {
+  res.send('Solana Mining App Backend Running ✅');
+});
+
 app.listen(PORT, () => {
-    console.log(`🚀 Server running on port ${PORT}`);
+  console.log(`🚀 Server running on http://localhost:${PORT}`);
 });
