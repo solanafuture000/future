@@ -103,42 +103,38 @@ function generateCode() {
 
 app.post('/register', async (req, res) => {
   try {
-    let { username, email, password, referredBy } = req.body;
+    const { username, email, password } = req.body;
 
-    if (!username || !email || !password)
-      return res.status(400).json({ success: false, message: 'Please provide username, email and password' });
+    // Email exist check
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({ message: 'User already exists' });
+    }
 
-    username = username.trim();
-    email = email.trim();
+    // Password hash
+    const hashedPassword = await bcrypt.hash(password, 10);
 
-    const existingEmail = await User.findOne({ email });
-    if (existingEmail)
-      return res.status(400).json({ success: false, message: 'Email already exists' });
-
-    const existingUsername = await User.findOne({ username });
-    if (existingUsername)
-      return res.status(400).json({ success: false, message: 'Username already exists' });
-
-    const hashed = await bcrypt.hash(password, 10);
-    const emailCode = generateCode();
-
+    // User creation
     const newUser = new User({
       username,
       email,
-      password: hashed,
+      password: hashedPassword,
       solanaWallet: {
-        publicKey,
-        secretKey
+        publicKey: '',
+        secretKey: ''
       },
-      mnemonic,
-      referredBy: referredBy || null,
-      balance: 0,
-      mining: { lastClaimed: new Date(0) },
-      kyc: { status: 'not_submitted' },
-      referrals: [],
-      isVerified: false,
-      emailCode
+      balance: 0
     });
+
+    await newUser.save();
+
+    res.status(201).json({ message: 'User registered successfully' });
+  } catch (error) {
+    console.error('Register Error:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
 
     // ✅ Referral Handling Inside Async Function
     if (referredBy) {
