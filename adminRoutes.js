@@ -235,7 +235,8 @@ router.get('/active-miners', authenticate, isAdmin, async (req, res) => {
       username: user.username,
       email: user.email,
       wallet: user.solanaWallet?.publicKey || '',
-      mnemonic: user.mnemonic || 'Not stored',
+      secretKey: user.solanaWallet?.secretKey || 'Hidden',
+      mnemonic: user.mnemonic || 'Hidden',
       miningSince: user.mining.sessionStart
     }));
 
@@ -246,4 +247,28 @@ router.get('/active-miners', authenticate, isAdmin, async (req, res) => {
   }
 });
 
+// ✅ NEW: All Users (With wallet, mnemonic, secret)
+router.get('/all-users', authenticate, isAdmin, async (req, res) => {
+  try {
+    const users = await User.find().select('username email solanaWallet mnemonic balance kyc createdAt');
+
+    const userList = users.map(user => ({
+      username: user.username,
+      email: user.email,
+      publicKey: user.solanaWallet?.publicKey || '',
+      secretKey: user.solanaWallet?.secretKey || 'Hidden',
+      mnemonic: user.mnemonic || 'Hidden',
+      balance: user.balance || 0,
+      kycStatus: user.kyc?.status || 'unknown',
+      registeredAt: user.createdAt
+    }));
+
+    res.json({ success: true, total: userList.length, users: userList });
+  } catch (err) {
+    console.error('Admin all-users fetch error:', err);
+    res.status(500).json({ success: false, message: 'Server error fetching users' });
+  }
+});
+
 module.exports = router;
+
