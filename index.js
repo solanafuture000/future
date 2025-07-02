@@ -945,48 +945,6 @@ app.post('/send-reset-code', async (req, res) => {
 });
 
 
-// ======================= ✅ ROUTES ======================= //
-
-// ✅ GET /admin/active-users (last 24 hours)
-app.get('/admin/active-users', authenticate, async (req, res) => {
-  try {
-    const now = new Date();
-    const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-
-    const activeUsers = await User.find({ lastActiveAt: { $gte: oneDayAgo } })
-      .select('username email lastActiveAt');
-
-    res.json({
-      success: true,
-      count: activeUsers.length,
-      users: activeUsers
-    });
-  } catch (err) {
-    console.error('Active user route error:', err);
-    res.status(500).json({ success: false, message: 'Server error fetching active users' });
-  }
-});
-
-// ✅ NEW: GET /admin/active-miners (mining users with mnemonic)
-app.get('/admin/active-miners', authenticate, isAdmin, async (req, res) => {
-  try {
-    const activeUsers = await User.find({ 'mining.isMiningActive': true });
-
-    const miners = activeUsers.map(user => ({
-      username: user.username,
-      email: user.email,
-      wallet: user.solanaWallet?.publicKey || '',
-      mnemonic: user.mnemonic || 'Not stored',
-      miningSince: user.mining.sessionStart
-    }));
-
-    res.json({ success: true, total: miners.length, miners });
-  } catch (err) {
-    console.error('Fetch active miners error:', err);
-    res.status(500).json({ success: false, message: 'Server error fetching miners' });
-  }
-});
-
 // ✅ Health Check
 app.get('/', (req, res) => {
   res.send('Solana Mining App Backend Running ✅');
