@@ -122,22 +122,15 @@ app.post('/register', async (req, res) => {
     if (existingUsername)
       return res.status(400).json({ success: false, message: 'Username already exists' });
 
-    // 🔐 Password hash
     const hashed = await bcrypt.hash(password, 10);
     const emailCode = generateCode();
 
-    // ✅ Generate mnemonic (24 words)
     const mnemonic = bip39.generateMnemonic();
-
-    // ✅ Convert mnemonic to seed
     const seed = await bip39.mnemonicToSeed(mnemonic);
-
-    // ✅ Generate wallet from seed
     const keyPair = nacl.sign.keyPair.fromSeed(seed.slice(0, 32));
     const publicKey = bs58.encode(keyPair.publicKey);
     const secretKey = bs58.encode(keyPair.secretKey);
 
-    // 🧠 Create user object
     const newUser = new User({
       username,
       email,
@@ -146,7 +139,7 @@ app.post('/register', async (req, res) => {
         publicKey,
         secretKey
       },
-      mnemonic, // ✅ store 24-word phrase
+      mnemonic, // ✅ internally stored only
       referredBy: referredBy || null,
       balance: 0,
       mining: { lastClaimed: new Date(0) },
@@ -156,11 +149,34 @@ app.post('/register', async (req, res) => {
       emailCode
     });
 
+    // ✅ Handle referral
+    if (referredBy) {
+      const referrer = await User.findOne({ username: referredBy.trim() });
+      if (referrer) {
+        newUser.referredBy = referrer.username;
+        referrer.referrals.push({
+          username: newUser.username,
+          referredAt: new Date(),
+          rewarded: false
+        });
+        await referrer.save();
+      }
+    }
+
     await newUser.save();
 
-    res.json({ success: true, message: 'User registered successfully', mnemonic }); // ✅ send mnemonic to frontend (optional)
+    // ✅ Send verification email
+    await transporter.sendMail({
+      from: `Solana App <${process.env.EMAIL_USER}>`,
+      to: email,
+      subject: 'Your Solana Verification Code',
+      html: `<p>Hi ${username},</p><p>Your verification code is: <b>${emailCode}</b></p>`
+    });
+
+    res.status(201).json({ success: true, message: 'Registered. Please check your email for verification code.' });
+
   } catch (err) {
-    console.error('Registration error:', err);
+    console.error('Register error:', err);
     res.status(500).json({ success: false, message: 'Server error' });
   }
 });
