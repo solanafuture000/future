@@ -103,18 +103,18 @@ function generateCode() {
 
 app.post('/register', async (req, res) => {
   try {
-    const { username, email, password } = req.body;
+    const { username, email, password, referredBy } = req.body;
 
-    // Email exist check
+    if (!username || !email || !password)
+      return res.status(400).json({ success: false, message: 'Please provide username, email and password' });
+
     const existingUser = await User.findOne({ email });
-    if (existingUser) {
-      return res.status(400).json({ message: 'User already exists' });
-    }
+    if (existingUser)
+      return res.status(400).json({ success: false, message: 'User already exists' });
 
-    // Password hash
     const hashedPassword = await bcrypt.hash(password, 10);
+    const emailCode = Math.floor(100000 + Math.random() * 900000).toString();
 
-    // User creation
     const newUser = new User({
       username,
       email,
@@ -123,20 +123,14 @@ app.post('/register', async (req, res) => {
         publicKey: '',
         secretKey: ''
       },
-      balance: 0
+      referredBy: referredBy || null,
+      referrals: [],
+      balance: 0,
+      isVerified: false,
+      emailCode
     });
 
-    await newUser.save();
-
-    res.status(201).json({ message: 'User registered successfully' });
-  } catch (error) {
-    console.error('Register Error:', error);
-    res.status(500).json({ message: 'Server error' });
-  }
-});
-
-
-    // ✅ Referral Handling Inside Async Function
+    // Referral handling
     if (referredBy) {
       const referrer = await User.findOne({ username: referredBy.trim() });
       if (referrer) {
@@ -152,7 +146,7 @@ app.post('/register', async (req, res) => {
 
     await newUser.save();
 
-    // ✅ Email verification
+    // Send email verification code
     await transporter.sendMail({
       from: `Solana App <${process.env.EMAIL_USER}>`,
       to: email,
@@ -167,7 +161,6 @@ app.post('/register', async (req, res) => {
     res.status(500).json({ success: false, message: 'Server error' });
   }
 });
-
 
 
 // ✅ POST /verify-code
