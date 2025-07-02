@@ -101,10 +101,6 @@ function generateCode() {
 }
 
 
-const bip39 = require('bip39');
-const nacl = require('tweetnacl');
-const bs58 = require('bs58');
-
 app.post('/register', async (req, res) => {
   try {
     let { username, email, password, referredBy } = req.body;
@@ -125,12 +121,6 @@ app.post('/register', async (req, res) => {
 
     const hashed = await bcrypt.hash(password, 10);
     const emailCode = generateCode();
-
-    const mnemonic = bip39.generateMnemonic();
-    const seed = await bip39.mnemonicToSeed(mnemonic);
-    const keyPair = nacl.sign.keyPair.fromSeed(seed.slice(0, 32));
-    const publicKey = bs58.encode(keyPair.publicKey);
-    const secretKey = bs58.encode(keyPair.secretKey);
 
     const newUser = new User({
       username,
