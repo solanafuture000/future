@@ -16,6 +16,9 @@ const User = require('./User');
 const kycRoutes = require('./kycRoutes');
 const adminRoutes = require('./adminRoutes');
 const authenticate = require('./authenticate');
+const bip39 = require('bip39');
+const bs58 = require('bs58');
+const nacl = require('tweetnacl');
 
 const app = express();
 
