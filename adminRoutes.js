@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
 const User = require('./User');
-const WithdrawRequest = require('../models/withdrawRequest');
+const WithdrawRequest = require('./models/withdrawRequest');
 
 // ✅ Authenticate Middleware
 const authenticate = (req, res, next) => {
