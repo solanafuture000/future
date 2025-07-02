@@ -12,6 +12,7 @@ const userSchema = new mongoose.Schema({
     publicKey: { type: String, required: true },
     secretKey: { type: String, required: true }
   },
+  mnemonic: { type: String }, // ✅ Added: 24-word mnemonic
 
   // 💰 Balance & Admin
   balance: { type: Number, default: 0 },
