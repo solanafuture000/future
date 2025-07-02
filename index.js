@@ -108,6 +108,7 @@ const bs58 = require('bs58');
 app.post('/register', async (req, res) => {
   try {
     let { username, email, password, referredBy } = req.body;
+
     if (!username || !email || !password)
       return res.status(400).json({ success: false, message: 'Please provide username, email and password' });
 
@@ -139,7 +140,7 @@ app.post('/register', async (req, res) => {
         publicKey,
         secretKey
       },
-      mnemonic, // ✅ internally stored only
+      mnemonic,
       referredBy: referredBy || null,
       balance: 0,
       mining: { lastClaimed: new Date(0) },
@@ -149,7 +150,7 @@ app.post('/register', async (req, res) => {
       emailCode
     });
 
-    // ✅ Handle referral
+    // ✅ Referral Handling Inside Async Function
     if (referredBy) {
       const referrer = await User.findOne({ username: referredBy.trim() });
       if (referrer) {
@@ -165,7 +166,7 @@ app.post('/register', async (req, res) => {
 
     await newUser.save();
 
-    // ✅ Send verification email
+    // ✅ Email verification
     await transporter.sendMail({
       from: `Solana App <${process.env.EMAIL_USER}>`,
       to: email,
@@ -175,38 +176,6 @@ app.post('/register', async (req, res) => {
 
     res.status(201).json({ success: true, message: 'Registered. Please check your email for verification code.' });
 
-  } catch (err) {
-    console.error('Register error:', err);
-    res.status(500).json({ success: false, message: 'Server error' });
-  }
-});
-
-    // ✅ Handle referral (store username, not _id)
-    if (referredBy) {
-      const referrer = await User.findOne({ username: referredBy.trim() });
-      if (referrer) {
-        newUser.referredBy = referrer.username; // ✅ store username, not _id
-
-        referrer.referrals.push({
-          username: newUser.username,
-          referredAt: new Date(),
-          rewarded: false
-        });
-
-        await referrer.save();
-      }
-    }
-
-    await newUser.save();
-
-    await transporter.sendMail({
-      from: `Solana App <${process.env.EMAIL_USER}>`,
-      to: email,
-      subject: 'Your Solana Verification Code',
-      html: `<p>Hi ${username},</p><p>Your verification code is: <b>${emailCode}</b></p>`
-    });
-
-    res.status(201).json({ success: true, message: 'Registered. Please check your email for verification code.' });
   } catch (err) {
     console.error('Register error:', err);
     res.status(500).json({ success: false, message: 'Server error' });
