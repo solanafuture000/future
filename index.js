@@ -950,6 +950,7 @@ app.get('/', (req, res) => {
   res.send('Solana Mining App Backend Running ✅');
 });
 
+const PORT = process.env.PORT || 3005;
 app.listen(PORT, () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);
 });
