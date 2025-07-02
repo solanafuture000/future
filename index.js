@@ -944,28 +944,6 @@ app.post('/send-reset-code', async (req, res) => {
   return res.status(200).json({ message: 'Verification code sent to email' });
 });
 
-const express = require('express');
-const mongoose = require('mongoose');
-const cors = require('cors');
-const jwt = require('jsonwebtoken');
-const dotenv = require('dotenv');
-const User = require('./models/user');
-const { authenticate, isAdmin } = require('./middleware/auth');
-
-dotenv.config();
-
-const app = express();
-app.use(cors());
-app.use(express.json());
-
-// ✅ MongoDB Connect
-mongoose.connect(process.env.MONGO_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true
-}).then(() => console.log('✅ MongoDB connected'))
-  .catch(err => console.error('❌ MongoDB connection error:', err));
-
-const PORT = process.env.PORT || 3005;
 
 // ======================= ✅ ROUTES ======================= //
 
