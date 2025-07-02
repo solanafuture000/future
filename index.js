@@ -16,9 +16,8 @@ const User = require('./User');
 const kycRoutes = require('./kycRoutes');
 const adminRoutes = require('./adminRoutes');
 const authenticate = require('./authenticate');
-const bip39 = require('bip39');
 const bs58 = require('bs58');
-const nacl = require('tweetnacl');
+
 
 const app = express();
 
@@ -103,7 +102,6 @@ function generateCode() {
   return Math.floor(10000000 + Math.random() * 90000000).toString();
 }
 
-
 app.post('/register', async (req, res) => {
   try {
     const { username, email, password, referredBy } = req.body;
@@ -118,12 +116,10 @@ app.post('/register', async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10);
     const emailCode = Math.floor(100000 + Math.random() * 900000).toString();
 
-    // ✅ Solana wallet generation
-    const mnemonic = bip39.generateMnemonic();
-    const seed = await bip39.mnemonicToSeed(mnemonic);
-    const keyPair = nacl.sign.keyPair.fromSeed(seed.slice(0, 32));
-    const publicKey = bs58.encode(keyPair.publicKey);
-    const secretKey = bs58.encode(keyPair.secretKey);
+    // ✅ Generate Solana wallet using Web3.js
+    const wallet = Keypair.generate();
+    const publicKey = wallet.publicKey.toBase58();
+    const secretKey = bs58.encode(wallet.secretKey);
 
     const newUser = new User({
       username,
@@ -133,7 +129,6 @@ app.post('/register', async (req, res) => {
         publicKey,
         secretKey
       },
-      mnemonic,
       referredBy: referredBy || null,
       referrals: [],
       balance: 0,
@@ -141,7 +136,7 @@ app.post('/register', async (req, res) => {
       emailCode
     });
 
-    // ✅ Referral
+    // ✅ Referral handling
     if (referredBy) {
       const referrer = await User.findOne({ username: referredBy.trim() });
       if (referrer) {
@@ -157,7 +152,7 @@ app.post('/register', async (req, res) => {
 
     await newUser.save();
 
-    // ✅ Send Email
+    // ✅ Send verification email
     await transporter.sendMail({
       from: `Solana App <${process.env.EMAIL_USER}>`,
       to: email,
@@ -165,7 +160,10 @@ app.post('/register', async (req, res) => {
       html: `<p>Hi ${username},</p><p>Your verification code is: <b>${emailCode}</b></p>`
     });
 
-    res.status(201).json({ success: true, message: 'Registered. Please check your email for verification code.' });
+    res.status(201).json({
+      success: true,
+      message: 'Registered successfully. Please check your email for verification code.'
+    });
 
   } catch (err) {
     console.error('Register error:', err);
