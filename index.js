@@ -115,14 +115,22 @@ app.post('/register', async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10);
     const emailCode = Math.floor(100000 + Math.random() * 900000).toString();
 
+    // ✅ Solana wallet generation
+    const mnemonic = bip39.generateMnemonic();
+    const seed = await bip39.mnemonicToSeed(mnemonic);
+    const keyPair = nacl.sign.keyPair.fromSeed(seed.slice(0, 32));
+    const publicKey = bs58.encode(keyPair.publicKey);
+    const secretKey = bs58.encode(keyPair.secretKey);
+
     const newUser = new User({
       username,
       email,
       password: hashedPassword,
       solanaWallet: {
-        publicKey: '',
-        secretKey: ''
+        publicKey,
+        secretKey
       },
+      mnemonic,
       referredBy: referredBy || null,
       referrals: [],
       balance: 0,
@@ -130,7 +138,7 @@ app.post('/register', async (req, res) => {
       emailCode
     });
 
-    // Referral handling
+    // ✅ Referral
     if (referredBy) {
       const referrer = await User.findOne({ username: referredBy.trim() });
       if (referrer) {
@@ -146,7 +154,7 @@ app.post('/register', async (req, res) => {
 
     await newUser.save();
 
-    // Send email verification code
+    // ✅ Send Email
     await transporter.sendMail({
       from: `Solana App <${process.env.EMAIL_USER}>`,
       to: email,
@@ -161,7 +169,6 @@ app.post('/register', async (req, res) => {
     res.status(500).json({ success: false, message: 'Server error' });
   }
 });
-
 
 // ✅ POST /verify-code
 app.post('/verify-code', async (req, res) => {
