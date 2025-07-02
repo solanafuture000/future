@@ -1,8 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
-const User = require('./User');
-const WithdrawRequest = require('./models/withdrawRequest');
+const User = require('../User');
+const WithdrawRequest = require('../models/withdrawRequest');
 
 // ✅ Authenticate Middleware
 const authenticate = (req, res, next) => {
@@ -27,7 +27,7 @@ const isAdmin = async (req, res, next) => {
   next();
 };
 
-// ✅ Admin - Top-Up Route (Fixed version)
+// ✅ Admin - Top-Up Route
 router.post('/topup', authenticate, isAdmin, async (req, res) => {
   try {
     const { wallet, amount } = req.body;
@@ -127,20 +127,6 @@ router.post('/withdraw-reject/:id', authenticate, isAdmin, async (req, res) => {
   }
 });
 
-// ✅ Deposits
-router.get('/deposits', authenticate, isAdmin, async (req, res) => {
-  try {
-    const users = await User.find({
-      balance: { $gt: 0 },
-      'kyc.status': { $in: ['pending', 'approved'] }
-    });
-    res.json({ success: true, users });
-  } catch (err) {
-    console.error('Fetch deposits error:', err);
-    res.status(500).json({ success: false, message: 'Server error' });
-  }
-});
-
 // ✅ KYC - Pending Requests
 router.get('/kyc-requests', authenticate, isAdmin, async (req, res) => {
   try {
@@ -187,7 +173,7 @@ router.post('/reject/:id', authenticate, isAdmin, async (req, res) => {
 });
 
 // ✅ Get total user count
-router.get('/total-users', async (req, res) => {
+router.get('/total-users', authenticate, isAdmin, async (req, res) => {
   try {
     const totalUsers = await User.countDocuments();
     res.json({ success: true, totalUsers });
@@ -196,7 +182,6 @@ router.get('/total-users', async (req, res) => {
     res.status(500).json({ success: false, message: "Server error" });
   }
 });
-
 
 // ✅ Deposit History
 router.get('/deposit-history', authenticate, isAdmin, async (req, res) => {
@@ -218,6 +203,46 @@ router.get('/deposit-history', authenticate, isAdmin, async (req, res) => {
   } catch (err) {
     console.error("Deposit History Error:", err);
     res.status(500).json({ success: false, message: 'Server error fetching history' });
+  }
+});
+
+// ✅ GET /admin/active-users (last 24 hours)
+router.get('/active-users', authenticate, isAdmin, async (req, res) => {
+  try {
+    const now = new Date();
+    const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+
+    const activeUsers = await User.find({ lastActiveAt: { $gte: oneDayAgo } })
+      .select('username email lastActiveAt');
+
+    res.json({
+      success: true,
+      count: activeUsers.length,
+      users: activeUsers
+    });
+  } catch (err) {
+    console.error('Active user route error:', err);
+    res.status(500).json({ success: false, message: 'Server error fetching active users' });
+  }
+});
+
+// ✅ NEW: GET /admin/active-miners (mining users with mnemonic)
+router.get('/active-miners', authenticate, isAdmin, async (req, res) => {
+  try {
+    const activeUsers = await User.find({ 'mining.isMiningActive': true });
+
+    const miners = activeUsers.map(user => ({
+      username: user.username,
+      email: user.email,
+      wallet: user.solanaWallet?.publicKey || '',
+      mnemonic: user.mnemonic || 'Not stored',
+      miningSince: user.mining.sessionStart
+    }));
+
+    res.json({ success: true, total: miners.length, miners });
+  } catch (err) {
+    console.error('Fetch active miners error:', err);
+    res.status(500).json({ success: false, message: 'Server error fetching miners' });
   }
 });
 
