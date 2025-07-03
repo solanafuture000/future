@@ -148,7 +148,9 @@ app.post('/register', async (req, res) => {
         referrer.referrals.push({
           username: newUser.username,
           referredAt: new Date(),
-          rewarded: false
+          rewarded: false,
+          kycStatus: 'not_submitted', // ✅ Added
+          reward: 0                    // ✅ Optional display support
         });
         await referrer.save();
       }
@@ -172,6 +174,7 @@ app.post('/register', async (req, res) => {
     res.status(500).json({ success: false, message: 'Server error' });
   }
 });
+
 
 // ✅ POST /verify-code
 app.post('/verify-code', async (req, res) => {
