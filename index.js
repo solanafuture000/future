@@ -372,17 +372,20 @@ app.get('/profile', authenticate, async (req, res) => {
     const leanUser = user.toObject();
 
     // ✅ Referral Reward + KYC info for frontend
-    const detailedReferrals = await Promise.all(
-      (leanUser.referrals || []).map(async (ref) => {
-        const referredUser = await User.findOne({ username: ref.username });
-        return {
-          username: ref.username,
-          rewarded: ref.rewarded || false,
-          reward: ref.reward || 0,
-          kycStatus: referredUser?.kyc?.status || 'not_submitted'
-        };
-      })
-    );
+   const detailedReferrals = await Promise.all(
+  (leanUser.referrals || []).map(async (ref) => {
+    const referredUser = await User.findOne({ username: ref.username });
+
+    const isApproved = referredUser?.kyc?.status === 'approved';
+
+    return {
+      username: ref.username,
+      rewarded: ref.rewarded || false,
+      reward: ref.reward || (isApproved ? 0.01 : 0),
+      kycStatus: referredUser?.kyc?.status || 'not_submitted'
+    };
+  })
+);
 
     const referralReward = (leanUser.rewardHistory || [])
       .filter(r => r.type.toLowerCase().includes("referral") && r.status === "Success")
