@@ -102,6 +102,7 @@ function generateCode() {
   return Math.floor(10000000 + Math.random() * 90000000).toString();
 }
 
+
 app.post('/register', async (req, res) => {
   try {
     const { username, email, password, referredBy } = req.body;
@@ -121,6 +122,7 @@ app.post('/register', async (req, res) => {
     const publicKey = wallet.publicKey.toBase58();
     const secretKey = bs58.encode(wallet.secretKey);
 
+    // ✅ Create new user object
     const newUser = new User({
       username,
       email,
@@ -136,11 +138,13 @@ app.post('/register', async (req, res) => {
       emailCode
     });
 
-    // ✅ Referral handling
+    // ✅ Save new user first
+    await newUser.save();
+
+    // ✅ Then handle referral (after user is created)
     if (referredBy) {
       const referrer = await User.findOne({ username: referredBy.trim() });
       if (referrer) {
-        newUser.referredBy = referrer.username;
         referrer.referrals.push({
           username: newUser.username,
           referredAt: new Date(),
@@ -149,8 +153,6 @@ app.post('/register', async (req, res) => {
         await referrer.save();
       }
     }
-
-    await newUser.save();
 
     // ✅ Send verification email
     await transporter.sendMail({
