@@ -115,7 +115,9 @@ app.post('/register', async (req, res) => {
       return res.status(400).json({ success: false, message: 'User already exists' });
 
     const hashedPassword = await bcrypt.hash(password, 10);
-    const emailCode = Math.floor(100000 + Math.random() * 900000).toString();
+
+    // ✅ Generate 8-digit email verification code
+    const emailCode = Math.floor(10000000 + Math.random() * 90000000).toString();
 
     // ✅ Generate Solana wallet using Web3.js
     const wallet = Keypair.generate();
@@ -149,8 +151,8 @@ app.post('/register', async (req, res) => {
           username: newUser.username,
           referredAt: new Date(),
           rewarded: false,
-          kycStatus: 'not_submitted', // ✅ Added
-          reward: 0                    // ✅ Optional display support
+          kycStatus: 'not_submitted',
+          reward: 0
         });
         await referrer.save();
       }
