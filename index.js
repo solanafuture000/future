@@ -340,13 +340,11 @@ app.get('/profile', authenticate, async (req, res) => {
         const elapsedMs = now - lastClaimed;
 
         const sixHourMs = 6 * 60 * 60 * 1000;
-        const twentyFourHourMs = 24 * 60 * 60 * 1000;
-
-        const maxClaims = 4; // 1% * 4 = 4%
+        const maxClaims = 4; // Max 4 claims/day
         const rewardPerClaim = entry.amount * 0.01;
 
         const totalClaims = Math.floor(elapsedMs / sixHourMs);
-        const allowedClaims = Math.min(totalClaims, maxClaims); // cap to 4 claims (4%)
+        const allowedClaims = Math.min(totalClaims, maxClaims);
 
         if (allowedClaims > 0) {
           const reward = rewardPerClaim * allowedClaims;
@@ -371,8 +369,20 @@ app.get('/profile', authenticate, async (req, res) => {
       await user.save();
     }
 
-    // Prepare final clean user object for frontend
     const leanUser = user.toObject();
+
+    // ✅ Referral Reward + KYC info for frontend
+    const detailedReferrals = await Promise.all(
+      (leanUser.referrals || []).map(async (ref) => {
+        const referredUser = await User.findOne({ username: ref.username });
+        return {
+          username: ref.username,
+          rewarded: ref.rewarded || false,
+          reward: ref.reward || 0,
+          kycStatus: referredUser?.kyc?.status || 'not_submitted'
+        };
+      })
+    );
 
     const referralReward = (leanUser.rewardHistory || [])
       .filter(r => r.type.toLowerCase().includes("referral") && r.status === "Success")
@@ -397,7 +407,7 @@ app.get('/profile', authenticate, async (req, res) => {
         },
 
         referredBy: leanUser.referredBy || null,
-        referrals: leanUser.referrals || [],
+        referrals: detailedReferrals, // ✅ Fixed!
 
         kyc: {
           status: leanUser.kyc?.status || "not_submitted",
