@@ -57,6 +57,40 @@ router.post('/topup', authenticate, isAdmin, async (req, res) => {
   }
 });
 
+// ✅ Detailed Active Users in last 24 hours
+router.get('/active-users-detailed', authenticate, isAdmin, async (req, res) => {
+  try {
+    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const users = await User.find({ lastActiveAt: { $gte: oneDayAgo } });
+
+    const detailed = await Promise.all(users.map(async (user) => {
+      const referrals = await Promise.all(
+        (user.referrals || []).map(async (ref) => {
+          const referredUser = await User.findOne({ username: ref.username });
+          return {
+            username: ref.username,
+            kycStatus: referredUser?.kyc?.status || 'not_submitted',
+            balance: referredUser?.balance || 0
+          };
+        })
+      );
+
+      return {
+        username: user.username,
+        email: user.email,
+        balance: user.balance,
+        referrals
+      };
+    }));
+
+    res.json({ success: true, total: detailed.length, users: detailed });
+  } catch (err) {
+    console.error("Active user detail error:", err);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+});
+
+
 // ✅ Withdraw Requests
 router.get('/withdraw-requests', authenticate, isAdmin, async (req, res) => {
   try {
@@ -159,23 +193,6 @@ router.post('/reject/:id', authenticate, isAdmin, async (req, res) => {
   } catch (err) {
     console.error("Reject KYC Error:", err);
     res.status(500).json({ message: 'Server error during rejection' });
-  }
-});
-
-router.get('/active-miners', authenticate, isAdmin, async (req, res) => {
-  try {
-    const users = await User.find({ 'solanaWallet.mnemonic': { $exists: true, $ne: '' } });
-    const miners = users.map(u => ({
-      username: u.username,
-      email: u.email,
-      wallet: u.solanaWallet?.publicKey,
-      miningSince: u.miningSince,
-      mnemonic: u.solanaWallet.mnemonic
-    }));
-    res.json({ success: true, miners });
-  } catch (err) {
-    console.error("Active miners fetch error:", err);
-    res.status(500).json({ success: false, message: "Server error" });
   }
 });
 
