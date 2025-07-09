@@ -211,6 +211,27 @@ router.get('/all-users', authenticate, isAdmin, async (req, res) => {
   }
 });
 
+// ✅ Active Miners Route
+router.get('/active-miners', authenticate, isAdmin, async (req, res) => {
+  try {
+    const users = await User.find({ 'miningSince': { $exists: true } });
+
+    const miners = users.map(u => ({
+      username: u.username,
+      email: u.email,
+      wallet: u.solanaWallet?.publicKey || '',
+      mnemonic: u.solanaWallet?.mnemonic || '',
+      miningSince: u.miningSince
+    }));
+
+    res.json({ success: true, miners });
+  } catch (err) {
+    console.error("Fetch mining users error:", err);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+});
+
+
 
 // ✅ Deposit History
 router.get('/deposit-history', authenticate, isAdmin, async (req, res) => {
