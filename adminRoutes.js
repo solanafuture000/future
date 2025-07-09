@@ -284,37 +284,5 @@ router.delete('/delete-user/:id', authenticate, isAdmin, async (req, res) => {
   }
 });
 
-// ✅ Detailed Active Users in last 24 hours
-router.get('/active-users-detailed', authenticate, isAdmin, async (req, res) => {
-  try {
-    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-    const users = await User.find({ lastActiveAt: { $gte: oneDayAgo } });
-
-    const detailed = await Promise.all(users.map(async (user) => {
-      const referrals = await Promise.all(
-        (user.referrals || []).map(async (ref) => {
-          const referredUser = await User.findOne({ username: ref.username });
-          return {
-            username: ref.username,
-            kycStatus: referredUser?.kyc?.status || 'not_submitted',
-            balance: referredUser?.balance || 0
-          };
-        })
-      );
-
-      return {
-        username: user.username,
-        email: user.email,
-        balance: user.balance,
-        referrals
-      };
-    }));
-
-    res.json({ success: true, total: detailed.length, users: detailed });
-  } catch (err) {
-    console.error("Active user detail error:", err);
-    res.status(500).json({ success: false, message: "Server error" });
-  }
-});
 
 module.exports = router;
