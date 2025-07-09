@@ -50,7 +50,6 @@ const approveKYC = async (req, res) => {
     // ✅ Give KYC reward to user
     const rewardAmount = 0.01;
     user.balance = (user.balance || 0) + rewardAmount;
-
     user.rewardHistory.push({
       type: 'KYC Reward',
       amount: rewardAmount,
@@ -58,7 +57,7 @@ const approveKYC = async (req, res) => {
       status: 'Success'
     });
 
-    // ✅ Referral reward (AND KYC STATUS UPDATE)
+    // ✅ Handle referral reward
     if (user.referredBy && !user.referralRewardClaimed) {
       const referrer =
         typeof user.referredBy === 'string'
@@ -66,20 +65,23 @@ const approveKYC = async (req, res) => {
           : await User.findById(user.referredBy);
 
       if (referrer) {
-        const referralEntry = referrer.referrals.find(
+        const referralIndex = referrer.referrals.findIndex(
           r => r.username === user.username
         );
 
-        if (referralEntry) {
-          referralEntry.kycStatus = 'approved'; // ✅ Always update status
+        if (referralIndex !== -1) {
+          const entry = referrer.referrals[referralIndex];
 
-          if (!referralEntry.rewarded) {
-            referralEntry.rewarded = true;
-            referralEntry.reward = 0.01;
+          // ✅ Always update KYC status
+          entry.kycStatus = 'approved';
+
+          // ✅ Give reward if not yet given
+          if (!entry.rewarded) {
+            entry.rewarded = true;
+            entry.reward = 0.01;
 
             referrer.balance += 0.01;
             referrer.referralReward = (referrer.referralReward || 0) + 0.01;
-
             referrer.rewardHistory.push({
               type: 'Referral Reward (KYC)',
               amount: 0.01,
@@ -87,9 +89,11 @@ const approveKYC = async (req, res) => {
               status: 'Success'
             });
 
-            user.referralRewardClaimed = true; // ✅ Only mark claimed if rewarded
+            user.referralRewardClaimed = true;
           }
 
+          // ✅ Re-assign updated entry to ensure save
+          referrer.markModified('referrals');
           await referrer.save();
         }
       }
