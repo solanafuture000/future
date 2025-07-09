@@ -31,7 +31,7 @@ const submitKYC = async (req, res) => {
   }
 };
 
-// ✅ KYC Approve Controller (Final)
+// ✅ KYC Approve Controller (Fixed)
 const approveKYC = async (req, res) => {
   try {
     const { userId } = req.params;
@@ -58,7 +58,7 @@ const approveKYC = async (req, res) => {
       status: 'Success'
     });
 
-    // ✅ Handle referral reward
+    // ✅ Referral reward (AND KYC STATUS UPDATE)
     if (user.referredBy && !user.referralRewardClaimed) {
       const referrer =
         typeof user.referredBy === 'string'
@@ -70,30 +70,34 @@ const approveKYC = async (req, res) => {
           r => r.username === user.username
         );
 
-        if (referralEntry && !referralEntry.rewarded) {
-          referralEntry.rewarded = true;
-          referralEntry.reward = 0.01;
-          referralEntry.kycStatus = 'approved'; // ✅ for frontend display
+        if (referralEntry) {
+          referralEntry.kycStatus = 'approved'; // ✅ Always update status
 
-          referrer.balance += 0.01;
-          referrer.referralReward = (referrer.referralReward || 0) + 0.01;
+          if (!referralEntry.rewarded) {
+            referralEntry.rewarded = true;
+            referralEntry.reward = 0.01;
 
-          referrer.rewardHistory.push({
-            type: 'Referral Reward (KYC)',
-            amount: 0.01,
-            date: new Date(),
-            status: 'Success'
-          });
+            referrer.balance += 0.01;
+            referrer.referralReward = (referrer.referralReward || 0) + 0.01;
+
+            referrer.rewardHistory.push({
+              type: 'Referral Reward (KYC)',
+              amount: 0.01,
+              date: new Date(),
+              status: 'Success'
+            });
+
+            user.referralRewardClaimed = true; // ✅ Only mark claimed if rewarded
+          }
 
           await referrer.save();
-          user.referralRewardClaimed = true; // ✅ important flag
         }
       }
     }
 
     await user.save();
 
-    res.json({ success: true, message: '✅ KYC approved and reward given.' });
+    res.json({ success: true, message: '✅ KYC approved and reward updated.' });
 
   } catch (error) {
     console.error('KYC Approve Error:', error);
