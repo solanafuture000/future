@@ -90,6 +90,16 @@ router.get('/active-users-detailed', authenticate, isAdmin, async (req, res) => 
   }
 });
 
+router.get('/active-users', authenticate, isAdmin, async (req, res) => {
+  try {
+    const users = await User.find({ lastActiveAt: { $gte: Date.now() - 24 * 60 * 60 * 1000 } });
+    res.json({ success: true, users });
+  } catch (err) {
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+
 
 // ✅ Withdraw Requests
 router.get('/withdraw-requests', authenticate, isAdmin, async (req, res) => {
