@@ -115,16 +115,12 @@ app.post('/register', async (req, res) => {
       return res.status(400).json({ success: false, message: 'User already exists' });
 
     const hashedPassword = await bcrypt.hash(password, 10);
-
-    // ✅ Generate 8-digit email verification code
     const emailCode = Math.floor(10000000 + Math.random() * 90000000).toString();
 
-    // ✅ Generate Solana wallet using Web3.js
     const wallet = Keypair.generate();
     const publicKey = wallet.publicKey.toBase58();
     const secretKey = bs58.encode(wallet.secretKey);
 
-    // ✅ Create new user object
     const newUser = new User({
       username,
       email,
@@ -140,10 +136,7 @@ app.post('/register', async (req, res) => {
       emailCode
     });
 
-    // ✅ Save new user first
-    await newUser.save();
-
-    // ✅ Then handle referral (after user is created)
+    // ✅ First add referral if applicable
     if (referredBy) {
       const referrer = await User.findOne({ username: referredBy.trim() });
       if (referrer) {
@@ -158,7 +151,10 @@ app.post('/register', async (req, res) => {
       }
     }
 
-    // ✅ Send verification email
+    // ✅ Then save new user
+    await newUser.save();
+
+    // ✅ Send email
     await transporter.sendMail({
       from: `Solana App <${process.env.EMAIL_USER}>`,
       to: email,
