@@ -28,7 +28,9 @@ const userSchema = new mongoose.Schema({
     {
       username: String,
       referredAt: { type: Date, default: Date.now },
-      rewarded: { type: Boolean, default: false }
+      rewarded: { type: Boolean, default: false },
+      reward: { type: Number, default: 0 },
+      kycStatus: { type: String, default: 'not_submitted' } // ✅ Added
     }
   ],
 
