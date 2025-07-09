@@ -27,11 +27,10 @@ const isAdmin = async (req, res, next) => {
   next();
 };
 
-// ✅ Admin - Top-Up Route
+// ✅ Top-Up Balance
 router.post('/topup', authenticate, isAdmin, async (req, res) => {
   try {
     const { wallet, amount } = req.body;
-
     if (!wallet || !amount || isNaN(amount)) {
       return res.status(400).json({ success: false, message: 'Wallet and valid amount required.' });
     }
@@ -58,7 +57,7 @@ router.post('/topup', authenticate, isAdmin, async (req, res) => {
   }
 });
 
-// ✅ Withdraw - Get All Pending
+// ✅ Withdraw Requests
 router.get('/withdraw-requests', authenticate, isAdmin, async (req, res) => {
   try {
     const requests = await WithdrawRequest.find({ status: 'pending' }).populate('user', 'username email solanaWallet');
@@ -69,7 +68,6 @@ router.get('/withdraw-requests', authenticate, isAdmin, async (req, res) => {
   }
 });
 
-// ✅ Withdraw - Approve
 router.post('/withdraw-approve/:id', authenticate, isAdmin, async (req, res) => {
   try {
     const request = await WithdrawRequest.findById(req.params.id).populate('user');
@@ -82,9 +80,7 @@ router.post('/withdraw-approve/:id', authenticate, isAdmin, async (req, res) => 
 
     const user = request.user;
     const reward = user.rewardHistory.find(r =>
-      r.type === 'Withdrawal' &&
-      r.amount === request.amount &&
-      r.status === 'Pending'
+      r.type === 'Withdrawal' && r.amount === request.amount && r.status === 'Pending'
     );
 
     if (reward) reward.status = 'Success';
@@ -97,7 +93,6 @@ router.post('/withdraw-approve/:id', authenticate, isAdmin, async (req, res) => 
   }
 });
 
-// ✅ Withdraw - Reject
 router.post('/withdraw-reject/:id', authenticate, isAdmin, async (req, res) => {
   try {
     const request = await WithdrawRequest.findById(req.params.id).populate('user');
@@ -112,14 +107,11 @@ router.post('/withdraw-reject/:id', authenticate, isAdmin, async (req, res) => {
     user.balance += request.amount;
 
     const reward = user.rewardHistory.find(r =>
-      r.type === 'Withdrawal' &&
-      r.amount === request.amount &&
-      r.status === 'Pending'
+      r.type === 'Withdrawal' && r.amount === request.amount && r.status === 'Pending'
     );
     if (reward) reward.status = 'Rejected';
 
     await user.save();
-
     res.json({ success: true, message: '❌ Withdraw rejected and refunded' });
   } catch (err) {
     console.error('Withdraw reject error:', err);
@@ -127,7 +119,7 @@ router.post('/withdraw-reject/:id', authenticate, isAdmin, async (req, res) => {
   }
 });
 
-// ✅ KYC - Pending Requests
+// ✅ KYC Routes
 router.get('/kyc-requests', authenticate, isAdmin, async (req, res) => {
   try {
     const requests = await User.find({ 'kyc.status': 'pending' });
@@ -138,7 +130,6 @@ router.get('/kyc-requests', authenticate, isAdmin, async (req, res) => {
   }
 });
 
-// ✅ KYC - Approve
 router.post('/approve/:id', authenticate, isAdmin, async (req, res) => {
   try {
     const user = await User.findById(req.params.id);
@@ -156,7 +147,6 @@ router.post('/approve/:id', authenticate, isAdmin, async (req, res) => {
   }
 });
 
-// ✅ KYC - Reject
 router.post('/reject/:id', authenticate, isAdmin, async (req, res) => {
   try {
     const user = await User.findById(req.params.id);
@@ -172,7 +162,7 @@ router.post('/reject/:id', authenticate, isAdmin, async (req, res) => {
   }
 });
 
-// ✅ Get total user count
+// ✅ Total Users
 router.get('/total-users', authenticate, isAdmin, async (req, res) => {
   try {
     const totalUsers = await User.countDocuments();
@@ -187,7 +177,6 @@ router.get('/total-users', authenticate, isAdmin, async (req, res) => {
 router.get('/deposit-history', authenticate, isAdmin, async (req, res) => {
   try {
     const users = await User.find({ 'depositHistory.0': { $exists: true } });
-
     const history = users.flatMap(user =>
       user.depositHistory.map(deposit => ({
         username: user.username,
@@ -198,7 +187,6 @@ router.get('/deposit-history', authenticate, isAdmin, async (req, res) => {
         receivedAt: deposit.receivedAt
       }))
     );
-
     res.json({ success: true, history });
   } catch (err) {
     console.error("Deposit History Error:", err);
@@ -206,69 +194,50 @@ router.get('/deposit-history', authenticate, isAdmin, async (req, res) => {
   }
 });
 
-// ✅ GET /admin/active-users (last 24 hours)
-router.get('/active-users', authenticate, isAdmin, async (req, res) => {
+// ✅ Delete any user by ID
+router.delete('/delete-user/:id', authenticate, isAdmin, async (req, res) => {
   try {
-    const now = new Date();
-    const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    const deleted = await User.findByIdAndDelete(req.params.id);
+    if (!deleted) return res.status(404).json({ success: false, message: 'User not found' });
 
-    const activeUsers = await User.find({ lastActiveAt: { $gte: oneDayAgo } })
-      .select('username email lastActiveAt');
-
-    res.json({
-      success: true,
-      count: activeUsers.length,
-      users: activeUsers
-    });
+    res.json({ success: true, message: `User ${deleted.username} deleted successfully.` });
   } catch (err) {
-    console.error('Active user route error:', err);
-    res.status(500).json({ success: false, message: 'Server error fetching active users' });
+    console.error("Delete user error:", err);
+    res.status(500).json({ success: false, message: 'Server error deleting user' });
   }
 });
 
-// ✅ NEW: GET /admin/active-miners (mining users with mnemonic)
-router.get('/active-miners', authenticate, isAdmin, async (req, res) => {
+// ✅ Detailed Active Users in last 24 hours
+router.get('/active-users-detailed', authenticate, isAdmin, async (req, res) => {
   try {
-    const activeUsers = await User.find({ 'mining.isMiningActive': true });
+    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const users = await User.find({ lastActiveAt: { $gte: oneDayAgo } });
 
-    const miners = activeUsers.map(user => ({
-      username: user.username,
-      email: user.email,
-      wallet: user.solanaWallet?.publicKey || '',
-      secretKey: user.solanaWallet?.secretKey || 'Hidden',
-      mnemonic: user.mnemonic || 'Hidden',
-      miningSince: user.mining.sessionStart
+    const detailed = await Promise.all(users.map(async (user) => {
+      const referrals = await Promise.all(
+        (user.referrals || []).map(async (ref) => {
+          const referredUser = await User.findOne({ username: ref.username });
+          return {
+            username: ref.username,
+            kycStatus: referredUser?.kyc?.status || 'not_submitted',
+            balance: referredUser?.balance || 0
+          };
+        })
+      );
+
+      return {
+        username: user.username,
+        email: user.email,
+        balance: user.balance,
+        referrals
+      };
     }));
 
-    res.json({ success: true, total: miners.length, miners });
+    res.json({ success: true, total: detailed.length, users: detailed });
   } catch (err) {
-    console.error('Fetch active miners error:', err);
-    res.status(500).json({ success: false, message: 'Server error fetching miners' });
-  }
-});
-
-// ✅ NEW: All Users (With wallet, mnemonic, secret)
-router.get('/all-users', authenticate, isAdmin, async (req, res) => {
-  try {
-    const users = await User.find().select('username email solanaWallet mnemonic balance kyc createdAt');
-
-    const userList = users.map(user => ({
-      username: user.username,
-      email: user.email,
-      publicKey: user.solanaWallet?.publicKey || '',
-      secretKey: user.solanaWallet?.secretKey || 'Hidden',
-      mnemonic: user.mnemonic || 'Hidden',
-      balance: user.balance || 0,
-      kycStatus: user.kyc?.status || 'unknown',
-      registeredAt: user.createdAt
-    }));
-
-    res.json({ success: true, total: userList.length, users: userList });
-  } catch (err) {
-    console.error('Admin all-users fetch error:', err);
-    res.status(500).json({ success: false, message: 'Server error fetching users' });
+    console.error("Active user detail error:", err);
+    res.status(500).json({ success: false, message: "Server error" });
   }
 });
 
 module.exports = router;
-
