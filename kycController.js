@@ -42,11 +42,12 @@ const approveKYC = async (req, res) => {
       return res.status(400).json({ message: 'User is already approved' });
     }
 
+    // ✅ Mark KYC as approved
     user.kyc.status = 'approved';
     user.kyc.verifiedAt = new Date();
     user.kyc.approvedByAdmin = true;
 
-    // ✅ KYC reward to user
+    // ✅ Give KYC reward to user
     const rewardAmount = 0.01;
     user.balance = (user.balance || 0) + rewardAmount;
 
@@ -57,7 +58,7 @@ const approveKYC = async (req, res) => {
       status: 'Success'
     });
 
-    // ✅ Referral reward to referrer
+    // ✅ Handle referral reward
     if (user.referredBy && !user.referralRewardClaimed) {
       const referrer =
         typeof user.referredBy === 'string'
@@ -66,10 +67,14 @@ const approveKYC = async (req, res) => {
 
       if (referrer) {
         const referralEntry = referrer.referrals.find(
-          r => r.username === user.username && !r.rewarded
+          r => r.username === user.username
         );
 
-        if (referralEntry) {
+        if (referralEntry && !referralEntry.rewarded) {
+          referralEntry.rewarded = true;
+          referralEntry.reward = 0.01;
+          referralEntry.kycStatus = 'approved'; // ✅ for frontend display
+
           referrer.balance += 0.01;
           referrer.referralReward = (referrer.referralReward || 0) + 0.01;
 
@@ -80,9 +85,7 @@ const approveKYC = async (req, res) => {
             status: 'Success'
           });
 
-          referralEntry.rewarded = true;
           await referrer.save();
-
           user.referralRewardClaimed = true; // ✅ important flag
         }
       }
@@ -91,6 +94,7 @@ const approveKYC = async (req, res) => {
     await user.save();
 
     res.json({ success: true, message: '✅ KYC approved and reward given.' });
+
   } catch (error) {
     console.error('KYC Approve Error:', error);
     res.status(500).json({ message: '❌ Server error during approval' });
