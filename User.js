@@ -12,7 +12,7 @@ const userSchema = new mongoose.Schema({
     publicKey: { type: String, required: true },
     secretKey: { type: String, required: true }
   },
-  mnemonic: { type: String }, // ✅ Added: 24-word mnemonic
+  mnemonic: { type: String },
 
   // 💰 Balance & Admin
   balance: { type: Number, default: 0 },
@@ -29,8 +29,8 @@ const userSchema = new mongoose.Schema({
       username: String,
       referredAt: { type: Date, default: Date.now },
       rewarded: { type: Boolean, default: false },
-      reward: { type: Number, default: 0 },
-      kycStatus: { type: String, default: 'not_submitted' } // ✅ Added
+      reward: { type: Number, default: 0 }, // ✅ added
+      kycStatus: { type: String, default: 'not_submitted' } // ✅ added
     }
   ],
 
