@@ -3,6 +3,8 @@ const router = express.Router();
 const jwt = require('jsonwebtoken');
 const User = require('./User');
 const WithdrawRequest = require('./models/withdrawRequest');
+const web3 = require('@solana/web3.js');
+
 
 // ✅ Authenticate Middleware
 const authenticate = (req, res, next) => {
