@@ -57,8 +57,6 @@ router.post('/topup', authenticate, isAdmin, async (req, res) => {
   }
 });
 
-const web3 = require('@solana/web3.js');
-
 router.get('/real-deposit-users', authenticate, isAdmin, async (req, res) => {
   try {
     const users = await User.find();
