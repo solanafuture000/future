@@ -100,6 +100,19 @@ router.get('/active-users', authenticate, isAdmin, async (req, res) => {
 });
 
 
+// ✅ KYC Approved Users Route
+router.get('/kyc-approved-users', authenticate, isAdmin, async (req, res) => {
+  try {
+    const users = await User.find({ 'kyc.status': 'approved' });
+    res.json({ success: true, users });
+  } catch (err) {
+    console.error("Fetch approved KYC users error:", err);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+
+
 
 // ✅ Withdraw Requests
 router.get('/withdraw-requests', authenticate, isAdmin, async (req, res) => {
