@@ -907,6 +907,70 @@ app.post('/forgot-password', async (req, res) => {
   }
 });
 
+// 🔥 Offer Stake Route (valid for 7 days)
+app.post('/offer/stake', authenticate, async (req, res) => {
+  try {
+    const { amount } = req.body;
+    const user = await User.findById(req.user.id);
+    const now = new Date();
+    const offerEndsAt = new Date("2025-07-17T23:59:59Z"); // Ends in 7 days
+
+    if (now > offerEndsAt) {
+      return res.status(400).json({ message: "❌ Offer has expired." });
+    }
+
+    if (!amount || isNaN(amount) || amount < 0.1) {
+      return res.status(400).json({ message: "Minimum 0.1 SOL required to avail offer." });
+    }
+
+    if (user.balance < amount) {
+      return res.status(400).json({ message: "❌ Insufficient balance." });
+    }
+
+    // ✅ Apply 30% bonus
+    const bonus = parseFloat((amount * 0.30).toFixed(3));
+    const totalStake = amount + bonus;
+
+    user.balance -= amount;
+    user.staked = (user.staked || 0) + totalStake;
+
+    user.rewardHistory.push({
+      type: 'Offer Stake',
+      amount: totalStake,
+      bonus,
+      status: 'Success',
+      date: new Date()
+    });
+
+    // ✅ Referral cashback (only if staked ≥ 1 SOL)
+    if (amount >= 1 && user.referredBy && !user.referralStakeBonusGiven) {
+      const referrer = await User.findOne({ username: user.referredBy });
+      if (referrer) {
+        const cashback = parseFloat((amount * 0.20).toFixed(3));
+        referrer.balance += cashback;
+
+        referrer.rewardHistory.push({
+          type: 'Referral Cashback (Stake)',
+          amount: cashback,
+          status: 'Success',
+          date: new Date()
+        });
+
+        await referrer.save();
+        user.referralStakeBonusGiven = true;
+      }
+    }
+
+    await user.save();
+    res.json({ success: true, message: `✅ You staked ${amount} SOL and received ${bonus} SOL bonus.` });
+
+  } catch (err) {
+    console.error("Stake Offer Error:", err);
+    res.status(500).json({ message: "❌ Server error during staking." });
+  }
+});
+
+
 app.post('/reset-password', async (req, res) => {
   try {
     const { email, code, newPassword } = req.body;
