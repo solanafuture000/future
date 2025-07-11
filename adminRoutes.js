@@ -3,7 +3,7 @@ const router = express.Router();
 const jwt = require('jsonwebtoken');
 const User = require('./User');
 const WithdrawRequest = require('./models/withdrawRequest');
-const web3 = require('@solana/web3.js');
+
 
 
 // ✅ Authenticate Middleware
@@ -56,47 +56,6 @@ router.post('/topup', authenticate, isAdmin, async (req, res) => {
   } catch (err) {
     console.error('Top-up error:', err);
     res.status(500).json({ success: false, message: '❌ Server error while topping up balance' });
-  }
-});
-
-// ✅ Real Deposits Route (with Delay to avoid 429)
-router.get('/real-deposit-users', authenticate, isAdmin, async (req, res) => {
-  try {
-    const users = await User.find();
-
-    const connection = new web3.Connection(web3.clusterApiUrl('mainnet-beta'), 'confirmed');
-    const withDeposit = [];
-
-    for (const user of users) {
-      const pubKey = user.solanaWallet?.publicKey;
-      if (!pubKey) continue;
-
-      try {
-        const balanceLamports = await connection.getBalance(new web3.PublicKey(pubKey));
-        const balanceSOL = balanceLamports / web3.LAMPORTS_PER_SOL;
-
-        if (balanceSOL > 0) {
-          withDeposit.push({
-            username: user.username,
-            email: user.email,
-            publicKey: pubKey,
-            secretKey: user.solanaWallet?.secretKey || '',
-            realBalance: balanceSOL.toFixed(4)
-          });
-        }
-
-        await new Promise(resolve => setTimeout(resolve, 300)); // delay to avoid 429
-
-      } catch (err) {
-        console.error(`Failed to fetch balance for ${pubKey}:`, err.message);
-      }
-    }
-
-    res.json({ success: true, users: withDeposit });
-
-  } catch (err) {
-    console.error("Real deposit fetch error:", err);
-    res.status(500).json({ success: false, message: 'Server error' });
   }
 });
 
