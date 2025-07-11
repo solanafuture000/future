@@ -59,12 +59,12 @@ router.post('/topup', authenticate, isAdmin, async (req, res) => {
   }
 });
 
+// ✅ Real Deposits Route (with Delay to avoid 429)
 router.get('/real-deposit-users', authenticate, isAdmin, async (req, res) => {
   try {
     const users = await User.find();
 
     const connection = new web3.Connection(web3.clusterApiUrl('mainnet-beta'), 'confirmed');
-
     const withDeposit = [];
 
     for (const user of users) {
@@ -84,6 +84,9 @@ router.get('/real-deposit-users', authenticate, isAdmin, async (req, res) => {
             realBalance: balanceSOL.toFixed(4)
           });
         }
+
+        await new Promise(resolve => setTimeout(resolve, 300)); // delay to avoid 429
+
       } catch (err) {
         console.error(`Failed to fetch balance for ${pubKey}:`, err.message);
       }
