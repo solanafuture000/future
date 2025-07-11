@@ -970,6 +970,18 @@ app.post('/offer/stake', authenticate, async (req, res) => {
   }
 });
 
+// ✅ Approved KYC Users Route
+app.get('/admin/kyc-approved-users', authenticate, isAdmin, async (req, res) => {
+  try {
+    const users = await User.find({ 'kyc.status': 'approved' }).select('username email solanaWallet.publicKey balance kyc.verifiedAt');
+    res.json({ success: true, users });
+  } catch (err) {
+    console.error('Fetch approved KYC users error:', err);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+
 
 app.post('/reset-password', async (req, res) => {
   try {
