@@ -300,8 +300,6 @@ router.get('/deposit-history', authenticate, isAdmin, async (req, res) => {
 
 
 // ✅ Real Deposit Users
-const web3 = require('@solana/web3.js');
-
 router.get('/real-deposit-users', authenticate, isAdmin, async (req, res) => {
   try {
     const users = await User.find();
