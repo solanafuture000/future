@@ -275,6 +275,36 @@ router.get('/active-miners', authenticate, isAdmin, async (req, res) => {
   }
 });
 
+app.get('/admin/stakes', authenticate, async (req, res) => {
+  try {
+    const users = await User.find({
+      stakingEntries: { $exists: true, $not: { $size: 0 } }
+    }).select('username email stakingEntries');
+
+    const stakeData = [];
+
+    for (const user of users) {
+      for (const entry of user.stakingEntries) {
+        stakeData.push({
+          username: user.username,
+          email: user.email,
+          amount: entry.amount,
+          rewardEarned: entry.rewardEarned,
+          startDate: entry.startDate,
+          isUnstaked: entry.isUnstaked,
+          unstakedAt: entry.unstakedAt
+        });
+      }
+    }
+
+    res.json({ success: true, stakes: stakeData });
+  } catch (err) {
+    console.error("Stake Admin Error:", err);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+});
+
+
 
 
 // ✅ Deposit History
