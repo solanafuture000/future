@@ -275,7 +275,7 @@ router.get('/active-miners', authenticate, isAdmin, async (req, res) => {
   }
 });
 
-app.get('/admin/stakes', authenticate, async (req, res) => {
+router.get('/stakes', authenticate, async (req, res) => {
   try {
     const users = await User.find({
       stakingEntries: { $exists: true, $not: { $size: 0 } }
